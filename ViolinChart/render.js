@@ -144,6 +144,27 @@
       const windowSize = extension.size;
       loadSelectedMarks(worksheetName, windowSize);
     }
+    function visibility(event) {
+      tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
+        // When the parameter changes show/hide the extension
+      const extension = tableau.extensions.dashboardContent.dashboard.objects.find(p=> p.name === "Violin Chart");
+      var dashboardObjectVisibilityMap = new Map();
+      if (par.currentValue.value === "Show") {
+        dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Show);
+      } else if (par.currentValue.value === "Hide") {
+        dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Hide);
+      }
+      var dashboard = tableau.extensions.dashboardContent.dashboard;
+      dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
+        console.log("done");
+      });
+      })
+    }
+    tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(visibilitytoggle => {
+      // Add an event listener for the selection changed event on this sheet.
+      unregisterHandlerFunctions.push(visibilitytoggle.addEventListener(tableau.TableauEventType.ParameterChanged, visibility));
+      // Fetch the saved sheet name from settings. This will be undefined if there isn't one configured yet
+    });
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.MarkSelectionChanged, reload));
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.FilterChanged, reload));
   }
@@ -352,7 +373,7 @@
     const maxCount = scaleWidth / minLabelWidth;
     let tickstep = Math.max(Math.ceil((domain[1]-domain[0]+1)/maxCount),1);
     let xticks = [];
-    for (var i = 0; i < domain[1]; i+=tickstep) {
+    for (var i = 0; i <= domain[1]; i+=tickstep) {
         xticks.push(i)
     }
     xticks = xticks.map(tick => areaLeaves[tick]);
@@ -405,7 +426,6 @@
         );
 
     xlabelheirarchy.each(d=> labelrect(d,svg));
-    svg.append('text').text('TEST').attr('x', 100).attr('y', 100).attr('font-size', '60px');
 
     svg.append("g")
         .attr("transform", `translate(${margin.left},0)`)
@@ -435,8 +455,8 @@
     areaSeries.forEach(serie => {
         svg.select(".histogram")
             .append("path")
-            .attr("fill", "red")
-            .attr("fill-opacity", 0.5)
+            .attr("fill", "steelblue")
+            .attr("fill-opacity", 0.3)
             .attr("d", area.curve(curve)(serie.histogram));
 
         svg.select(".points")
