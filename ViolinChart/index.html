@@ -23,32 +23,31 @@
 
     <!-- Include our own style sheets and javascript code -->
     <link rel="stylesheet" href="./main.css">
-    <script src="./render.js"></script>
+    <script type = "module" src="./render.js"></script>
 </head>
 
 <body>
-    <div class="container-fluid">
+    <div class="container-fluid" id="plot-container">
         <!-- Main UI -->
-        <div id="selected_marks">
+        <!-- <div id="selected_marks">
             <h4>
                 Violin Chart for <span class="sheet_name" id="selected_marks_title">Sheet Name</span>
                 <button title="Choose Sheet" type="button" class="btn btn-link" id="show_choose_sheet_button">
           <i class="material-icons">build</i>
-        </button>
+                </button>
                 <button title="Reset Filters" type="button" class="btn btn-link" id="reset_filters_button">
           <i class="material-icons">replay</i>
-        </button>
+                </button>
             </h4>
             <div id="data_table_wrapper"></div>
             <div id="no_data_message">
                 <h5>No marks selected</h5>
             </div>
-        </div>
-        <div id="plot-container"></div>
+        </div> -->
     </div>
 
     <!-- Choose Sheet Dialog (See https://www.w3schools.com/bootstrap/bootstrap_modal.asp for bootstrap dialog info) -->
-    <div id="choose_sheet_dialog" class="modal fade" tabindex="-1" role="dialog">
+    <!-- <div id="choose_sheet_dialog" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -62,7 +61,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> -->
 </body>
 
 </html>

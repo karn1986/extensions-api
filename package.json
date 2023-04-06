@@ -2,6 +2,7 @@
   "name": "extensions-api-sdk",
   "version": "1.10.0",
   "description": "Sample code and documentation for the Tableau Extensions API.",
+  "type": "module",
   "scripts": {
     "build": "npm install && npm run lint && webpack --config webpack.config.js",
     "start": "node node_modules/http-server/bin/http-server -p 8765 -c-1",
