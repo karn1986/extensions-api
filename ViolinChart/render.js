@@ -9,17 +9,28 @@ import { plotAll } from "./buildallPlots.js";
       // The first step in choosing a sheet will be asking Tableau what sheets are available
       const dashboardObjects = tableau.extensions.dashboardContent.dashboard.objects;
       const worksheets = tableau.extensions.dashboardContent.dashboard.worksheets;
-      var dashboardObjectVisibilityMap = new Map();
+      let dashboardObjectVisibilityMap = new Map();
+      let width = 0;
+      let height = 0;
       dashboardObjects.forEach(object =>  {
         if (object.worksheet) {
           dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Hide);
+          width += object.size.width;
+          height += object.size.height;
         }
       });
-      var dashboard = tableau.extensions.dashboardContent.dashboard;
+      let dashboard = tableau.extensions.dashboardContent.dashboard;
       dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
         console.log("done");
       });
-      const windowSize = dashboardObjects.find(p=> p.name === "Violin Chart").size; 
+      let windowSize = dashboardObjects.find(p=> p.name === "Violin Chart").size; 
+      if (windowSize.width < 100) {
+        windowSize.width = width;
+      }
+      if (windowSize.height < 100) {
+        windowSize.height = height;
+      }
+      console.log(`width is ${windowSize.width} and height is ${windowSize.height}`)
       loadSelectedMarks(worksheets, windowSize);
     });
   });
@@ -38,28 +49,86 @@ import { plotAll } from "./buildallPlots.js";
       unregisterHandlerFunctions = [];
     }
 
-    const dataMap = new Map();
-    // Call to get the selected marks for our sheet
-    let nplots = 1;
-    for (let i=0; i < worksheets.length; i++)  {
-      if (i >= nplots) {
+    // First determine the number of subplots
+    let nplots;
+    const plotType = await tableau.extensions.dashboardContent.dashboard.findParameterAsync("TS/Distribution - Plot Types");
+    switch (plotType.currentValue.value) {
+      case "Norm Completion Parameter":
+      case "Perforation Parameter":
+      case "Completion Parameter":
+      case "Petrophysical":
+      case "Production":
+      case "Adjusted Water Cut":
+      case "Pre-Production (All Formations)":
+      case "Pre-Production (Formation Specific)":
+        nplots = 5;
         break;
-      }
-      let dataTableReader = await worksheets[i].getSummaryDataReaderAsync();
+      case "Proppant Mesh Size":
+        nplots = 4;
+        break;
+      case "Well Parameter":
+      case "Proppant Type":
+        nplots = 3;
+        break;
+      case "Sand Type":
+        nplots = 2;
+        break;
+      case "Fluid History":
+          nplots = 8;
+          break;
+      case "GOR":
+        nplots = 6;
+        break;
+      default:
+        nplots = 0;
+    }
+
+    if (nplots<1) {
+      return;
+    }
+
+    // Next find the columns to extract
+    let options = {
+        maxRows: 1, // Max rows to return. Use 0 to return all rows.
+        includeDataValuesOption: tableau.IncludeDataValuesOption.OnlyNativeValues
+    }
+
+    const cols_to_include = {};
+    const keys = {}; // for storing the Y-axis labels
+    let re = /.*\(y-axis\)$|.*year.*|.*quarter.*/;
+    for (let i=0; i < nplots; i++)  {
+      let temp = [];
+      const worksheet = worksheets[i].name;
+      let dataTableReader = await worksheets[i].getSummaryDataReaderAsync(1, options);
+      let worksheetData = await dataTableReader.getAllPagesAsync(1);
+      worksheetData.columns.forEach((column, index) => {
+        if (column.fieldName.toLowerCase().match(re)) {
+          temp.push(column.fieldId)
+        }
+        if (column.fieldName === `ATTR(TS Labels - Sheet ${i+1} (Y-Axis))`) {
+          keys[worksheet] = worksheetData.data[0][index].value;
+        }
+      });
+      cols_to_include[worksheet] = temp;
+      await dataTableReader.releaseAsync();
+    }
+    
+    // Now fetch all data only for the columsn determined above
+    const dataMap = new Map();
+    re = /.*\(Y-Axis\)$/;
+    options.maxRows = 0;
+    for (let i=0; i < nplots; i++)  {
+      const worksheet = worksheets[i].name;
+      options.columnsToIncludeById = cols_to_include[worksheet];
+      let dataTableReader = await worksheets[i].getSummaryDataReaderAsync(10000, options);
       let worksheetData = await dataTableReader.getAllPagesAsync();
-      if (i==0) {
-        nplots = worksheetData.data[0][worksheetData.columns.findIndex(col => col.fieldName === "TS Violin Plots (Number of Plots)")].value;
-      }
       // ... process data table ...
-      const re = /.*\(Y-Axis\)$/;
-      let key;
       const columns = worksheetData.columns.map((column, i) => {
                     let row = {};
                     row["type"] = column.dataType;
                     row["colindex"] = i;
                     if (column.fieldName.match(re)) {
                       row["name"] = "Y";
-                      key = column.fieldName;
                       row["uniquecount"] = -1;
                       row["groupby"] = false;
                     } else if (column.fieldName.toLowerCase().includes("year")) {
@@ -80,19 +149,13 @@ import { plotAll } from "./buildallPlots.js";
 
       const data = worksheetData.data.map(row => {
                       let rowData = {};
-                      for (var i = 0; i < columns.length; i++) {
-                        if (columns[i].type === 'float') {
-                          rowData[columns[i].name] =  row[columns[i].colindex].value;
-                        } else {
-                          rowData[columns[i].name] = row[columns[i].colindex].formattedValue;
-                        }
-                        }
+                      columns.forEach(col => {
+                        rowData[col.name] =  row[col.colindex].value;
+                      });
                       return rowData;
                     });
-      if (key) {
-        dataMap.set(key, {columns: columns, data: data});
-      }
-      dataTableReader.releaseAsync().then();
+      dataMap.set(keys[worksheet], {columns: columns, data: data});
+      await dataTableReader.releaseAsync();
     }
   
     // plot the chart

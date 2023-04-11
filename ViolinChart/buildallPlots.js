@@ -10,7 +10,7 @@ export function plotAll(dataMap, windowSize) {
     }
   
     // The margins around the chart canvas.
-    let margin = { top: 40, right: 40, bottom: 40, left: 50 };
+    let margin = { top: 40, right: 40, bottom: 40, left: 80 };
 
     // The position and size of the chart canvas.
     const canvas = { 
@@ -45,18 +45,20 @@ export function plotAll(dataMap, windowSize) {
         }
         });
         let allrows = data.filter(d => d.Y !== null && !isNaN(d.Y)).sort((a, b) => a.Y - b.Y);
-        const maxy = d3.quantileSorted(allrows, 0.999, p => p.Y);
+        const maxy = d3.quantileSorted(allrows, 0.99, p => p.Y);
         const miny = d3.quantileSorted(allrows, 0, p => p.Y);
         const bin_size = (maxy - miny)/nbins;
-        let yScale = d3.scaleLinear().range([margin.top + (j+1) * plot_height + j * padding, margin.top + j * (plot_height + padding)]);
+        const plot_bottom = margin.top + (j+1) * plot_height + j * padding;
+        const plot_top = margin.top + j * (plot_height + padding);
+        let yScale = d3.scaleLinear().range([plot_bottom, plot_top]);
         yScale.domain([miny, maxy]).nice();
-        yScales.set(plotkey, {miny: miny, maxy: maxy, bin_size: bin_size, yScale: yScale});
+        yScales.set(plotkey, {miny: miny, maxy: maxy, bin_size: bin_size, yScale: yScale, top: plot_top, bottom: plot_bottom});
         d3.flatGroup(allrows, ...accesorfuncs)
             .forEach(row => {
                 let values;
                 let key = ""; 
                 for (var i = 0; i < row.length; i++) {
-                    if (typeof row[i] === 'string') {
+                    if (typeof row[i] != 'object') {
                         key += row[i];
                     } else if (typeof row[i] === 'object') {
                         values = row[i];
@@ -109,19 +111,19 @@ export function plotAll(dataMap, windowSize) {
     XLeaves.forEach(xLeaf => {
         xLeaf.plotleaves = xLeaf.plotleaves.map((plotleaf, i) => {
             const {miny, bin_size} = yScales.get(plotleaf.plotkey); 
-            let sorted = plotleaf.rows.map(p => p.Y)
-                                .sort((a,b)=>a-b);
-            const min = d3.quantileSorted(sorted, 0);
-            const max = d3.quantileSorted(sorted, 1);
-            const q1 = d3.quantileSorted(sorted, 0.25);
-            const q3 = d3.quantileSorted(sorted, 0.75);
-            const iqr = q3 - q1; // interquartile range
-            const r0 = Math.max(min, q1 - iqr * 1.5);
-            const r1 = Math.min(max, q3 + iqr * 1.5);
+            let sorted = plotleaf.rows.map(p => p.Y);
+                                // .sort((a,b)=>a-b);
+            // const min = d3.quantileSorted(sorted, 0);
+            // const max = d3.quantileSorted(sorted, 1);
+            // const q1 = d3.quantileSorted(sorted, 0.25);
+            // const q3 = d3.quantileSorted(sorted, 0.75);
+            // const iqr = q3 - q1; // interquartile range
+            // const r0 = Math.max(min, q1 - iqr * 1.5);
+            // const r1 = Math.min(max, q3 + iqr * 1.5);
             plotleaf["mean"] = d3.mean(sorted);
-            plotleaf["circles"] = sorted.filter(p => {            
-                return (p < r0 || p > r1); 
-            });
+            // plotleaf["circles"] = sorted.filter(p => {            
+            //     return (p < r0 || p > r1); 
+            // });
             plotleaf["bins"]= sorted.map(p => ({
                 bin: Math.min(Math.max(Math.floor((p-miny)/bin_size),0),nbins),
             }));
@@ -168,11 +170,38 @@ export function plotAll(dataMap, windowSize) {
     svg.append("g").attr("class", "histogram");
     svg.append("g").attr("class", "means");
     svg.append("g").attr("class", "points");
+    svg.append("g").attr("class", "yaxis_labels");
+    svg.append("g").attr("class", "xaxis_labels");
+    // function for text wrapping from https://gist.github.com/mbostock/7555321
+    function wrap(text, width) {
+        text.each(function() {
+          let text = d3.select(this),
+              words = text.text().split(/\s+/).reverse(),
+              word,
+              line = [],
+              lineNumber = 0,
+              lineHeight = 1.1, // ems
+              y = text.attr("y"),
+              x = text.attr("x"),
+              dy = 0,//parseFloat(text.attr("dy")),
+              tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+          while (word = words.pop()) {
+            line.push(word);
+            tspan.text(line.join(" "));
+            if (tspan.node().getComputedTextLength() > width) {
+              line.pop();
+              tspan.text(line.join(" "));
+              line = [word];
+              tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+            }
+          }
+        });
+      }
     /**
      * Compute the suitable ticks to show
      */
     const scaleWidth = xScale.range()[1] - xScale.range()[0];
-    const minLabelWidth = 40;
+    const minLabelWidth = 30;
     const maxCount = scaleWidth / minLabelWidth;
     let tickstep = Math.max(Math.ceil((domain[1]-domain[0]+1)/maxCount),1);
     let xticks = [];
@@ -188,7 +217,7 @@ export function plotAll(dataMap, windowSize) {
     let nested = d3.rollup(xticks, v=> d3.mean(v, v=> v.xIndex), ...accesorfuncs);
 
     let xlabelheirarchy = d3.hierarchy(nested)
-    const rect_height = 15;
+    const line_height = 1.2;
     function labelrect(node, container) {
         if (node.data[0]) {
             const depth = node.height+1;
@@ -205,30 +234,17 @@ export function plotAll(dataMap, windowSize) {
             container.append("text")
                     .attr("text-anchor", "middle")
                     .attr("x", xScale(mean))
-                    .attr("transform", `translate(0,${windowSize.height - margin.bottom + depth * rect_height})`)
+                    .attr("y", windowSize.height - margin.bottom+2)
+                    .attr("dy", depth * line_height + "em")
                     .text(node.data[0])
                     // .attr("color", "black")
                     
         }
         
     }
-    // console.log(d3.ticks(domain[0], domain[1], 5));
-    // /**
-    //  * X axis group.
-    //  */
-    let xAxis = svg
-        .append("g")
-        .attr("transform", `translate(0,${windowSize.height - margin.bottom})`)
-        .call(
-            d3
-                .axisBottom(xScale)
-                .tickSize(5)
-                .tickValues(xticks.map(d=>d.xIndex))    
-                // .tickPadding(styling.scales.tick.stroke != "none" ? 3 : 9)
-                .tickFormat(d=> "") //xLeaves[d].formattedPath().split("»").at(-1)
-        );
 
-    xlabelheirarchy.each(d=> labelrect(d,svg));
+
+    xlabelheirarchy.each(d=> labelrect(d,svg.select(".xaxis_labels")));
 
     yScales.forEach((value, key) => {
         svg.append("g")
@@ -236,12 +252,34 @@ export function plotAll(dataMap, windowSize) {
         .call(
             d3
                 .axisLeft(value.yScale)
-                // .ticks(yScaleTickNumber)
+                .ticks(3)
                 // .tickSize(styling.scales.tick.stroke != "none" ? 5 : 0)
                 // .tickPadding(styling.scales.tick.stroke != "none" ? 3 : 9)
         );
-    });
+        svg.select(".yaxis_labels")
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            // .attr("font-size", "smaller")
+            .attr("text-anchor", "middle")
+            .attr('x', -0.5*(value.top +value.bottom))
+            .attr('y', '1em')
+            .text(key)
 
+        svg
+            .append("g")
+            .attr("transform", `translate(0,${value.bottom})`)
+            .call(
+                d3
+                    .axisBottom(xScale)
+                    .tickSize(5)
+                    .tickValues(xticks.map(d=>d.xIndex))    
+                    // .tickPadding(styling.scales.tick.stroke != "none" ? 3 : 9)
+                    .tickFormat(d=> "") //xLeaves[d].formattedPath().split("»").at(-1)
+            );
+    });
+    svg.select(".yaxis_labels")
+            .selectAll("text")
+            .call(wrap, plot_height);
     /**
      * Create aggregated groups, sort by sum and draw each one of them.
      */
@@ -257,16 +295,16 @@ export function plotAll(dataMap, windowSize) {
                             .y(d => yScales.get(plotleaf.plotkey).yScale(d.Y))
                             .curve(curve)(plotleaf.histogram));
 
-            svg.select(".points")
-                .append("g")
-                .selectAll("circle")
-                .data(plotleaf.circles)
-                .enter()
-                .append("circle")
-                .attr("cx", () => (Math.random() - 0.5) *0.03*step + xScale(xLeaf.xIndex))
-                .attr("cy", d => yScales.get(plotleaf.plotkey).yScale(d))
-                .attr("r", 0.07*step)
-                .attr("fill", "black");
+            // svg.select(".points")
+            //     .append("g")
+            //     .selectAll("circle")
+            //     .data(plotleaf.circles)
+            //     .enter()
+            //     .append("circle")
+            //     .attr("cx", () => (Math.random() - 0.5) *0.03*step + xScale(xLeaf.xIndex))
+            //     .attr("cy", d => yScales.get(plotleaf.plotkey).yScale(d))
+            //     .attr("r", 0.07*step)
+            //     .attr("fill", "black");
                 
             svg.select(".means")
                 .append("path")
@@ -276,6 +314,25 @@ export function plotAll(dataMap, windowSize) {
                 .attr("d", d3.line()
                             .x(d => d)
                             .y(yScales.get(plotleaf.plotkey).yScale(plotleaf.mean)));
+
+            let formattedvalue;
+            if (plotleaf.mean > 100) {
+                formattedvalue = plotleaf.mean.toLocaleString('en-US', { maximumFractionDigits: 0});
+            } else if (plotleaf.mean < 100 && plotleaf.mean > 1){
+                formattedvalue = plotleaf.mean.toLocaleString('en-US', { maximumFractionDigits: 1});
+            } else {
+                formattedvalue = plotleaf.mean.toLocaleString('en-US', { maximumFractionDigits: 2});
+            }
+
+            svg.select(".means")
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .style("font-size", "0.75em")
+                // .attr("text-anchor", "middle")
+                .attr('x', -yScales.get(plotleaf.plotkey).yScale(plotleaf.mean))
+                .attr('dx', '0.1em')
+                .attr('y', xScale(xLeaf.xIndex) - 0.2 * step)
+                .text(formattedvalue)
         });
     });
 }
