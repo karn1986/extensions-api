@@ -165,7 +165,7 @@ import { plotAll } from "./buildallPlots.js";
       // When the selection changes, reload the data
       const extension = tableau.extensions.dashboardContent.dashboard.objects.find(p=> p.name === "Violin Chart");
       const windowSize = extension.size;
-      loadSelectedMarks(worksheetName, windowSize);
+      loadSelectedMarks(worksheets, windowSize);
     }
     function visibility(event) {
       tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
@@ -194,10 +194,13 @@ import { plotAll } from "./buildallPlots.js";
         });
       })
     }
-    tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(visibilitytoggle => {
+    tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
       // Add an event listener for the selection changed event on this sheet.
-      unregisterHandlerFunctions.push(visibilitytoggle.addEventListener(tableau.TableauEventType.ParameterChanged, visibility));
-      // Fetch the saved sheet name from settings. This will be undefined if there isn't one configured yet
+      unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, visibility));
+    });
+    tableau.extensions.dashboardContent.dashboard.findParameterAsync("TS/Distribution - Plot Types").then(par => {
+      // Add an event listener for the selection changed event on this sheet.
+      unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
     });
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.MarkSelectionChanged, reload));
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.FilterChanged, reload));

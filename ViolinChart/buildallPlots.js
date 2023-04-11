@@ -51,7 +51,7 @@ export function plotAll(dataMap, windowSize) {
         const plot_bottom = margin.top + (j+1) * plot_height + j * padding;
         const plot_top = margin.top + j * (plot_height + padding);
         let yScale = d3.scaleLinear().range([plot_bottom, plot_top]);
-        yScale.domain([miny, maxy]).nice();
+        yScale.domain([miny, maxy+bin_size]).nice();
         yScales.set(plotkey, {miny: miny, maxy: maxy, bin_size: bin_size, yScale: yScale, top: plot_top, bottom: plot_bottom});
         d3.flatGroup(allrows, ...accesorfuncs)
             .forEach(row => {
@@ -135,7 +135,7 @@ export function plotAll(dataMap, windowSize) {
             plotleaf["histogram"] = d3.flatGroup(plotleaf.bins, p => p.bin)
                                         .map(p => ({
                                             bin: parseInt(p[0]),
-                                            Y: miny + bin_size * parseInt(p[0]),
+                                            Y: miny + bin_size * (0.5 + parseInt(p[0])),
                                             count: p[1].length,
                                         })).sort((a, b) => a.bin - b.bin);
             let maxx = d3.max(plotleaf.histogram, p=>p.count);
@@ -197,6 +197,24 @@ export function plotAll(dataMap, windowSize) {
           }
         });
       }
+    // function for nice formatting numbers 
+    function formatTick(d, max = d) {
+        let s;
+        if (max > 1e9) {
+            s = (d / 1e9).toFixed(0) + "bil";
+        }else if (max > 1e6 && max < 1e9) {
+            s = (d / 1e6).toFixed(0) + "mil";
+        }else if (max > 1e5 && max < 1e6) {
+            s = (d / 1e3).toFixed(0) + "K";
+        }else if (max < 1e5 && max > 100){
+            s = d.toFixed(0);
+        } else if (max < 100 && max > 10){
+            s = d.toFixed(1);
+        } else {
+            s = d.toFixed(2);
+        }
+        return s
+    }
     /**
      * Compute the suitable ticks to show
      */
@@ -217,7 +235,7 @@ export function plotAll(dataMap, windowSize) {
     let nested = d3.rollup(xticks, v=> d3.mean(v, v=> v.xIndex), ...accesorfuncs);
 
     let xlabelheirarchy = d3.hierarchy(nested)
-    const line_height = 1.2;
+    const line_height = 1.2; // in em
     function labelrect(node, container) {
         if (node.data[0]) {
             const depth = node.height+1;
@@ -234,7 +252,7 @@ export function plotAll(dataMap, windowSize) {
             container.append("text")
                     .attr("text-anchor", "middle")
                     .attr("x", xScale(mean))
-                    .attr("y", windowSize.height - margin.bottom+2)
+                    .attr("y", windowSize.height - margin.bottom + 2)
                     .attr("dy", depth * line_height + "em")
                     .text(node.data[0])
                     // .attr("color", "black")
@@ -255,6 +273,7 @@ export function plotAll(dataMap, windowSize) {
                 .ticks(3)
                 // .tickSize(styling.scales.tick.stroke != "none" ? 5 : 0)
                 // .tickPadding(styling.scales.tick.stroke != "none" ? 3 : 9)
+                .tickFormat(d => formatTick(d, value.maxy))
         );
         svg.select(".yaxis_labels")
             .append("text")
@@ -315,15 +334,6 @@ export function plotAll(dataMap, windowSize) {
                             .x(d => d)
                             .y(yScales.get(plotleaf.plotkey).yScale(plotleaf.mean)));
 
-            let formattedvalue;
-            if (plotleaf.mean > 100) {
-                formattedvalue = plotleaf.mean.toLocaleString('en-US', { maximumFractionDigits: 0});
-            } else if (plotleaf.mean < 100 && plotleaf.mean > 1){
-                formattedvalue = plotleaf.mean.toLocaleString('en-US', { maximumFractionDigits: 1});
-            } else {
-                formattedvalue = plotleaf.mean.toLocaleString('en-US', { maximumFractionDigits: 2});
-            }
-
             svg.select(".means")
                 .append("text")
                 .attr("transform", "rotate(-90)")
@@ -332,7 +342,7 @@ export function plotAll(dataMap, windowSize) {
                 .attr('x', -yScales.get(plotleaf.plotkey).yScale(plotleaf.mean))
                 .attr('dx', '0.1em')
                 .attr('y', xScale(xLeaf.xIndex) - 0.2 * step)
-                .text(formattedvalue)
+                .text(formatTick(plotleaf.mean, yScales.get(plotleaf.plotkey).maxy))
         });
     });
 }
