@@ -95,7 +95,17 @@ import { plotAll } from "./buildallPlots.js";
 
     const cols_to_include = {};
     const keys = {}; // for storing the Y-axis labels
-    let re = /.*\(y-axis\)$|.*year.*|.*quarter.*/;
+    const datelevel = await tableau.extensions.dashboardContent.dashboard.findParameterAsync("Time Series Date Level");
+    let re, date_level;
+    if (datelevel.currentValue.value === "quarter") {
+      re = /.*\(y-axis\)$|.*year.*|.*quarter.*/;
+      date_level = 2;
+    } else if (datelevel.currentValue.value === "year") {
+      re = /.*\(y-axis\)$|.*year.*/;
+      date_level = 1;
+    } else {
+      return;
+    }
     for (let i=0; i < nplots; i++)  {
       let temp = [];
       const worksheet = worksheets[i].name;
@@ -159,7 +169,7 @@ import { plotAll } from "./buildallPlots.js";
     }
   
     // plot the chart
-    plotAll(dataMap, windowSize);
+    plotAll(dataMap, date_level, windowSize);
     // Add an event listener for the selection changed event on this sheet.
     function reload(event) {
       // When the selection changes, reload the data
@@ -199,6 +209,10 @@ import { plotAll } from "./buildallPlots.js";
       unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, visibility));
     });
     tableau.extensions.dashboardContent.dashboard.findParameterAsync("TS/Distribution - Plot Types").then(par => {
+      // Add an event listener for the selection changed event on this sheet.
+      unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
+    });
+    tableau.extensions.dashboardContent.dashboard.findParameterAsync("Time Series Date Level").then(par => {
       // Add an event listener for the selection changed event on this sheet.
       unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
     });

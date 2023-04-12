@@ -1,5 +1,5 @@
 
-export function plotAll(dataMap, windowSize) {
+export function plotAll(dataMap, date_level, windowSize) {
 
     const modContainer = d3.select("#plot-container");
     //  Main svg container
@@ -33,15 +33,12 @@ export function plotAll(dataMap, windowSize) {
     const nplots = dataMap.size;
     const padding = 10;
     const plot_height = (canvas.height - (nplots-1) * padding)/nplots;
-    let levels;
     let j = 0;
     for (const [plotkey, {columns, data}] of dataMap) {   
         let accesorfuncs = [];
-        levels = 0;
         columns.forEach(col => {
         if (col.groupby) {
             accesorfuncs.push(createAccessorFunction(col.name))
-            levels += 1;
         }
         });
         let allrows = data.filter(d => d.Y !== null && !isNaN(d.Y)).sort((a, b) => a.Y - b.Y);
@@ -53,13 +50,18 @@ export function plotAll(dataMap, windowSize) {
         let yScale = d3.scaleLinear().range([plot_bottom, plot_top]);
         yScale.domain([miny, maxy+bin_size]).nice();
         yScales.set(plotkey, {miny: miny, maxy: maxy, bin_size: bin_size, yScale: yScale, top: plot_top, bottom: plot_bottom});
+        // Group by Year and Quarter
         d3.flatGroup(allrows, ...accesorfuncs)
             .forEach(row => {
                 let values;
                 let key = ""; 
                 for (var i = 0; i < row.length; i++) {
                     if (typeof row[i] != 'object') {
-                        key += row[i];
+                        if (('' + row[i]).includes("null")) {
+                            key += "0000";
+                        } else {
+                           key += row[i]; 
+                        }       
                     } else if (typeof row[i] === 'object') {
                         values = row[i];
                     }
@@ -75,7 +77,7 @@ export function plotAll(dataMap, windowSize) {
     let temp = [];
     XLeaves.forEach((plotleaves, key) => {
         let rowData = {};
-        if (levels > 1) {
+        if (date_level > 1) {
             rowData["key0"] = key.substring(0, 4);
             rowData["key1"] = key.substring(4);
         } else {
@@ -84,15 +86,16 @@ export function plotAll(dataMap, windowSize) {
         rowData["plotleaves"] = plotleaves;
         temp.push(rowData)
     });
+    //  Sort by Year first and then Quarter
     XLeaves = temp.sort((a,b) => {
-                    if (levels > 1) {
+                    if (date_level > 1) {
                     if (a["key0"] != b["key0"]) {
                         return +a["key0"] - +b["key0"];
                     } else {
                         return +a["key1"].charAt(1) - +b["key1"].charAt(1);
                     }
                     } else {
-                    return d3.ascending(b["key0"], a["key0"]);
+                    return d3.ascending(a["key0"], b["key0"]);
                     }
                 })
                 .map((row, index) => {
@@ -153,20 +156,11 @@ export function plotAll(dataMap, windowSize) {
             });
     });
 
-
     let curve = d3.curveCatmullRom.alpha(0.5);
-
-    /**
-     * Sets the viewBox to match windowSize
-     */
+    // Sets the viewBox to match windowSize
     svg.attr("viewBox", [0, 0, windowSize.width, windowSize.height]);
     svg.selectAll("*").remove();
-
-    /**
-     * Prepare groups that will hold all elements of an area chart.
-     * The groups are drawn in a specific order for the best user experience:
-     * - 'histogram'
-     */
+    //  Prepare groups that will hold all elements of an area chart
     svg.append("g").attr("class", "histogram");
     svg.append("g").attr("class", "means");
     svg.append("g").attr("class", "points");
@@ -215,11 +209,10 @@ export function plotAll(dataMap, windowSize) {
         }
         return s
     }
-    /**
-     * Compute the suitable ticks to show
-     */
+
+    // Compute the suitable ticks to show
     const scaleWidth = xScale.range()[1] - xScale.range()[0];
-    const minLabelWidth = 30;
+    const minLabelWidth = 20;
     const maxCount = scaleWidth / minLabelWidth;
     let tickstep = Math.max(Math.ceil((domain[1]-domain[0]+1)/maxCount),1);
     let xticks = [];
@@ -229,79 +222,63 @@ export function plotAll(dataMap, windowSize) {
     xticks = xticks.map(tick => XLeaves[tick]);
     
     let accesorfuncs = [];
-    for (var i = 0; i < levels; i++) {
+    for (var i = 0; i < date_level; i++) {
      accesorfuncs.push(createAccessorFunction("key"+i));
     }
     let nested = d3.rollup(xticks, v=> d3.mean(v, v=> v.xIndex), ...accesorfuncs);
 
     let xlabelheirarchy = d3.hierarchy(nested)
     const line_height = 1.2; // in em
-    function labelrect(node, container) {
+    // function to put x axis labels at the right spot
+    function labelx(node, container) {
         if (node.data[0]) {
             const depth = node.height+1;
             const leafvalues = node.leaves().map(n=>n.data[1]);
-            const x = d3.min(leafvalues)-1;
-            const width = d3.max(leafvalues) - x + 1;
             const mean = d3.mean(leafvalues);
-            // container.append("rect")
-            //         .attr("x", xScale(x))
-            //         .attr('width', xScale(width))
-            //         .attr('height', rect_height)
-            //         .attr("transform", `translate(0,${(depth-1) * rect_height})`)
-            //         .attr('stroke', 'white')
+            
             container.append("text")
                     .attr("text-anchor", "middle")
                     .attr("x", xScale(mean))
                     .attr("y", windowSize.height - margin.bottom + 2)
                     .attr("dy", depth * line_height + "em")
-                    .text(node.data[0])
-                    // .attr("color", "black")
-                    
+                    .text(node.data[0]==="0000" ? "NULL": node.data[0]);
         }
-        
     }
-
-
-    xlabelheirarchy.each(d=> labelrect(d,svg.select(".xaxis_labels")));
+    xlabelheirarchy.each(d=> labelx(d,svg.select(".xaxis_labels")));
 
     yScales.forEach((value, key) => {
+        // generate y-axes for subplots
         svg.append("g")
-        .attr("transform", `translate(${margin.left},0)`)
-        .call(
-            d3
-                .axisLeft(value.yScale)
+            .attr("transform", `translate(${margin.left},0)`)
+            .call(
+                d3.axisLeft(value.yScale)
                 .ticks(3)
-                // .tickSize(styling.scales.tick.stroke != "none" ? 5 : 0)
-                // .tickPadding(styling.scales.tick.stroke != "none" ? 3 : 9)
                 .tickFormat(d => formatTick(d, value.maxy))
-        );
+            );
+        //  generate y-axis labels
         svg.select(".yaxis_labels")
             .append("text")
             .attr("transform", "rotate(-90)")
-            // .attr("font-size", "smaller")
             .attr("text-anchor", "middle")
             .attr('x', -0.5*(value.top +value.bottom))
             .attr('y', '1em')
-            .text(key)
-
-        svg
-            .append("g")
+            .text(key);
+        //  generate X -axes for each subplot
+        svg.append("g")
             .attr("transform", `translate(0,${value.bottom})`)
             .call(
-                d3
-                    .axisBottom(xScale)
+                  d3.axisBottom(xScale)
                     .tickSize(5)
                     .tickValues(xticks.map(d=>d.xIndex))    
-                    // .tickPadding(styling.scales.tick.stroke != "none" ? 3 : 9)
-                    .tickFormat(d=> "") //xLeaves[d].formattedPath().split("»").at(-1)
+                    .tickFormat(d=> "")
             );
     });
+    // Wrap the Y-axis labels
     svg.select(".yaxis_labels")
             .selectAll("text")
             .call(wrap, plot_height);
-    /**
-     * Create aggregated groups, sort by sum and draw each one of them.
-     */
+
+    // Draw the Violins.
     XLeaves.forEach(xLeaf => {
         xLeaf.plotleaves.forEach((plotleaf, i) => {
             svg.select(".histogram")
