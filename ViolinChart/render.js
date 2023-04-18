@@ -19,7 +19,7 @@ import { plotAll } from "./buildallPlots.js";
           height += object.size.height;
         }
       });
-      let dashboard = tableau.extensions.dashboardContent.dashboard;
+      const dashboard = tableau.extensions.dashboardContent.dashboard;
       dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
         console.log("done");
       });
@@ -51,7 +51,8 @@ import { plotAll } from "./buildallPlots.js";
 
     // First determine the number of subplots
     let nplots;
-    const plotType = await tableau.extensions.dashboardContent.dashboard.findParameterAsync("TS/Distribution - Plot Types");
+    const dashboard = tableau.extensions.dashboardContent.dashboard
+    const plotType = await dashboard.findParameterAsync("TS/Distribution - Plot Types");
     switch (plotType.currentValue.value) {
       case "Norm Completion Parameter":
       case "Perforation Parameter":
@@ -95,7 +96,7 @@ import { plotAll } from "./buildallPlots.js";
 
     const cols_to_include = {};
     const keys = {}; // for storing the Y-axis labels
-    const datelevel = await tableau.extensions.dashboardContent.dashboard.findParameterAsync("Time Series Date Level");
+    const datelevel = await dashboard.findParameterAsync("Time Series Date Level");
     let re, date_level;
     if (datelevel.currentValue.value === "quarter") {
       re = /.*\(y-axis\)$|.*year.*|.*quarter.*/;
@@ -182,7 +183,7 @@ import { plotAll } from "./buildallPlots.js";
         // When the parameter changes show/hide the extension
         const dashboardObjects = tableau.extensions.dashboardContent.dashboard.objects;
         const extension = dashboardObjects.find(p=> p.name === "Violin Chart");
-        var dashboardObjectVisibilityMap = new Map();
+        let dashboardObjectVisibilityMap = new Map();
         if (par.currentValue.value === "Show") {
           dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Show);
           dashboardObjects.forEach(object =>  {
@@ -198,25 +199,25 @@ import { plotAll } from "./buildallPlots.js";
             }
           });
         }
-        var dashboard = tableau.extensions.dashboardContent.dashboard;
+        let dashboard = tableau.extensions.dashboardContent.dashboard;
         dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
           console.log("done");
         });
       })
     }
-    tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
+    dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
       // Add an event listener for the selection changed event on this sheet.
       unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, visibility));
     });
-    tableau.extensions.dashboardContent.dashboard.findParameterAsync("TS/Distribution - Plot Types").then(par => {
+    dashboard.findParameterAsync("TS/Distribution - Plot Types").then(par => {
       // Add an event listener for the selection changed event on this sheet.
       unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
     });
-    tableau.extensions.dashboardContent.dashboard.findParameterAsync("Time Series Date Level").then(par => {
+    dashboard.findParameterAsync("Time Series Date Level").then(par => {
       // Add an event listener for the selection changed event on this sheet.
       unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
     });
-    // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.MarkSelectionChanged, reload));
+    unregisterHandlerFunctions.push(dashboard.addEventListener(tableau.TableauEventType.DashboardLayoutChanged, reload));
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.FilterChanged, reload));
   }
   

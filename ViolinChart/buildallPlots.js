@@ -241,7 +241,7 @@ export function plotAll(dataMap, date_level, windowSize) {
                     .attr("x", xScale(mean))
                     .attr("y", windowSize.height - margin.bottom + 2)
                     .attr("dy", depth * line_height + "em")
-                    .text(node.data[0]==="0000" ? "NULL": node.data[0]);
+                    .text(node.data[0]==="0000" ? (depth == date_level ? "NULL": "") : node.data[0]);
         }
     }
     xlabelheirarchy.each(d=> labelx(d,svg.select(".xaxis_labels")));
