@@ -217,7 +217,7 @@ import { plotAll } from "./buildallPlots.js";
       // Add an event listener for the selection changed event on this sheet.
       unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
     });
-    unregisterHandlerFunctions.push(dashboard.addEventListener(tableau.TableauEventType.DashboardLayoutChanged, reload));
+    // unregisterHandlerFunctions.push(dashboard.addEventListener(tableau.TableauEventType.DashboardLayoutChanged, reload));
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.FilterChanged, reload));
   }
   
