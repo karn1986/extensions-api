@@ -10,7 +10,7 @@ export function plotAll(dataMap, date_level, windowSize) {
     }
   
     // The margins around the chart canvas.
-    let margin = { top: 40, right: 40, bottom: 40, left: 80 };
+    let margin = { top: 5, right: 1, bottom: 40, left: 80 };
 
     // The position and size of the chart canvas.
     const canvas = { 
@@ -161,9 +161,6 @@ export function plotAll(dataMap, date_level, windowSize) {
     svg.attr("viewBox", [0, 0, windowSize.width, windowSize.height]);
     svg.selectAll("*").remove();
     //  Prepare groups that will hold all elements of an area chart
-    svg.append("g").attr("class", "histogram");
-    svg.append("g").attr("class", "means");
-    svg.append("g").attr("class", "points");
     svg.append("g").attr("class", "yaxis_labels");
     svg.append("g").attr("class", "xaxis_labels");
     // function for text wrapping from https://gist.github.com/mbostock/7555321
@@ -253,8 +250,19 @@ export function plotAll(dataMap, date_level, windowSize) {
             .call(
                 d3.axisLeft(value.yScale)
                 .ticks(3)
+                .tickSizeInner(-windowSize.width + margin.left + margin.right-6)
+                .tickPadding(9)
+                .tickSizeOuter(0)
                 .tickFormat(d => formatTick(d, value.maxy))
-            );
+                )
+            .call(g => g.selectAll(".tick:not(:first-of-type) line")
+                    .attr("stroke-opacity", 0.8)
+                    .attr("stroke", "LightGray")
+                    .attr("stroke-width", 1)
+                    )
+            .call(g => g.selectAll(".tick line")
+                        .attr("transform", `translate(-6,0)`)
+                );
         //  generate y-axis labels
         svg.select(".yaxis_labels")
             .append("text")
@@ -271,7 +279,9 @@ export function plotAll(dataMap, date_level, windowSize) {
                     .tickSize(5)
                     .tickValues(xticks.map(d=>d.xIndex))    
                     .tickFormat(d=> "")
-            );
+            )
+            .call(g => g.select(".domain")
+                .remove());
     });
     // Wrap the Y-axis labels
     svg.select(".yaxis_labels")
@@ -279,6 +289,8 @@ export function plotAll(dataMap, date_level, windowSize) {
             .call(wrap, plot_height);
 
     // Draw the Violins.
+    svg.append("g").attr("class", "histogram");
+    svg.append("g").attr("class", "means");
     XLeaves.forEach(xLeaf => {
         xLeaf.plotleaves.forEach((plotleaf, i) => {
             svg.select(".histogram")
@@ -317,7 +329,7 @@ export function plotAll(dataMap, date_level, windowSize) {
                 .style("font-size", "0.75em")
                 // .attr("text-anchor", "middle")
                 .attr('x', -yScales.get(plotleaf.plotkey).yScale(plotleaf.mean))
-                .attr('dx', '0.1em')
+                .attr('dx', '0.25em')
                 .attr('y', xScale(xLeaf.xIndex) - 0.2 * step)
                 .text(formatTick(plotleaf.mean, yScales.get(plotleaf.plotkey).maxy))
         });

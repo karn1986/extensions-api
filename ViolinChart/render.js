@@ -6,32 +6,46 @@ import { plotAll } from "./buildallPlots.js";
   $(document).ready(function () {
     // Tell Tableau we'd like to initialize our extension
     tableau.extensions.initializeAsync().then(function () {
-      // The first step in choosing a sheet will be asking Tableau what sheets are available
-      const dashboardObjects = tableau.extensions.dashboardContent.dashboard.objects;
-      const worksheets = tableau.extensions.dashboardContent.dashboard.worksheets;
-      let dashboardObjectVisibilityMap = new Map();
-      let width = 0;
-      let height = 0;
-      dashboardObjects.forEach(object =>  {
-        if (object.worksheet) {
-          dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Hide);
-          width += object.size.width;
-          height += object.size.height;
+      tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
+        // The first step in choosing a sheet will be asking Tableau what sheets are available
+        const dashboardObjects = tableau.extensions.dashboardContent.dashboard.objects;
+        const extension = dashboardObjects.find(p=> p.name === "Violin Chart");
+        const worksheets = tableau.extensions.dashboardContent.dashboard.worksheets;
+        let windowSize = extension.size;
+        let dashboardObjectVisibilityMap = new Map();
+        if (par.currentValue.value === "Show") {
+          dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Show);
+          let width = 0;
+          let height = 0;
+          dashboardObjects.forEach(object =>  {
+            if (object.worksheet) {
+              dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Hide);
+              width += object.size.width;
+              height += object.size.height;
+            }
+          });
+          if (windowSize.width < 100) {
+            windowSize.width = width;
+          }
+          if (windowSize.height < 100) {
+            windowSize.height = height;
+          }
+          console.log(`width is ${windowSize.width} and height is ${windowSize.height}`);
+        } else if (par.currentValue.value === "Hide") {
+          dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Hide);
+          dashboardObjects.forEach(object =>  {
+            if (object.worksheet) {
+              dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Show);
+            }
+          });
         }
+        const dashboard = tableau.extensions.dashboardContent.dashboard;
+        dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
+          console.log("done");
+        });
+
+        loadSelectedMarks(worksheets, windowSize).then();
       });
-      const dashboard = tableau.extensions.dashboardContent.dashboard;
-      dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
-        console.log("done");
-      });
-      let windowSize = dashboardObjects.find(p=> p.name === "Violin Chart").size; 
-      if (windowSize.width < 100) {
-        windowSize.width = width;
-      }
-      if (windowSize.height < 100) {
-        windowSize.height = height;
-      }
-      console.log(`width is ${windowSize.width} and height is ${windowSize.height}`)
-      loadSelectedMarks(worksheets, windowSize);
     });
   });
 
@@ -176,7 +190,7 @@ import { plotAll } from "./buildallPlots.js";
       // When the selection changes, reload the data
       const extension = tableau.extensions.dashboardContent.dashboard.objects.find(p=> p.name === "Violin Chart");
       const windowSize = extension.size;
-      loadSelectedMarks(worksheets, windowSize);
+      loadSelectedMarks(worksheets, windowSize).then();
     }
     function visibility(event) {
       tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
