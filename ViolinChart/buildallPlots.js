@@ -252,17 +252,20 @@ export function plotAll(dataMap, date_level, windowSize) {
                 .ticks(3)
                 .tickSizeInner(-windowSize.width + margin.left + margin.right-6)
                 .tickPadding(9)
-                .tickSizeOuter(0)
+                // .tickSizeOuter(0)
                 .tickFormat(d => formatTick(d, value.maxy))
                 )
-            .call(g => g.selectAll(".tick:not(:first-of-type) line")
+            .call(g => g.selectAll(".tick:first-of-type line")
+                .remove())
+            .call(g => g.selectAll(".tick line")
                     .attr("stroke-opacity", 0.8)
                     .attr("stroke", "LightGray")
                     .attr("stroke-width", 1)
+                    .attr("transform", `translate(-6,0)`)
                     )
-            .call(g => g.selectAll(".tick line")
-                        .attr("transform", `translate(-6,0)`)
-                );
+            // .call(g => g.selectAll(".tick line")
+            //             .attr("transform", `translate(-6,0)`)
+            //     );
         //  generate y-axis labels
         svg.select(".yaxis_labels")
             .append("text")
@@ -280,8 +283,8 @@ export function plotAll(dataMap, date_level, windowSize) {
                     .tickValues(xticks.map(d=>d.xIndex))    
                     .tickFormat(d=> "")
             )
-            .call(g => g.select(".domain")
-                .remove());
+            // .call(g => g.select(".domain")
+            //     .remove());
     });
     // Wrap the Y-axis labels
     svg.select(".yaxis_labels")
