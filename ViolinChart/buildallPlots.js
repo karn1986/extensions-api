@@ -1,5 +1,5 @@
 
-export function plotAll(dataMap, date_level, windowSize) {
+export function plotAll(dataMap, date_level, windowSize, transform) {
 
     const modContainer = d3.select("#plot-container");
     //  Main svg container
@@ -139,7 +139,7 @@ export function plotAll(dataMap, date_level, windowSize) {
                                         .map(p => ({
                                             bin: parseInt(p[0]),
                                             Y: miny + bin_size * (0.5 + parseInt(p[0])),
-                                            count: p[1].length,
+                                            count: p[1].length == 0 ? 0 :transform(p[1].length),
                                         })).sort((a, b) => a.bin - b.bin);
             let maxx = d3.max(plotleaf.histogram, p=>p.count);
             let scale = d3.scaleLinear()

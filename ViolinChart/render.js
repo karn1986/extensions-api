@@ -65,6 +65,7 @@ import { plotAll } from "./buildallPlots.js";
 
     // First determine the number of subplots
     let nplots;
+    let transform = (x) => x;
     const dashboard = tableau.extensions.dashboardContent.dashboard
     const plotType = await dashboard.findParameterAsync("TS/Distribution - Plot Types");
     switch (plotType.currentValue.value) {
@@ -80,13 +81,16 @@ import { plotAll } from "./buildallPlots.js";
         break;
       case "Proppant Mesh Size":
         nplots = 4;
+        transform = Math.log10;
         break;
       case "Well Parameter":
       case "Proppant Type":
         nplots = 3;
+        transform = Math.log10;
         break;
       case "Sand Type":
         nplots = 2;
+        transform = Math.log10;
         break;
       case "Fluid History":
           nplots = 8;
@@ -98,9 +102,9 @@ import { plotAll } from "./buildallPlots.js";
         nplots = 0;
     }
 
-    if (nplots<1) {
-      return;
-    }
+    // if (nplots<1) {
+    //   return;
+    // }
 
     // Next find the columns to extract
     let options = {
@@ -184,7 +188,7 @@ import { plotAll } from "./buildallPlots.js";
     }
   
     // plot the chart
-    plotAll(dataMap, date_level, windowSize);
+    plotAll(dataMap, date_level, windowSize, transform);
     // Add an event listener for the selection changed event on this sheet.
     function reload(event) {
       // When the selection changes, reload the data
