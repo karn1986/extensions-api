@@ -1,5 +1,6 @@
 'use strict';
-import { plotAll } from "./buildallPlots.js";
+import { plotTimeSeriesViolins } from "./buildTimeSeriesPlots.js";
+import { plotOperatorViolins } from "./buildOperatorPlots.js";
 // Wrap everything in an anonymous function to avoid polluting the global namespace
 (function () {
   // Use the jQuery document ready signal to know when everything has been initialized
@@ -114,16 +115,19 @@ import { plotAll } from "./buildallPlots.js";
 
     const cols_to_include = {};
     const keys = {}; // for storing the Y-axis labels
-    const datelevel = await dashboard.findParameterAsync("Time Series Date Level");
     let re, date_level;
-    if (datelevel.currentValue.value === "quarter") {
-      re = /.*\(y-axis\)$|.*year.*|.*quarter.*/;
-      date_level = 2;
-    } else if (datelevel.currentValue.value === "year") {
-      re = /.*\(y-axis\)$|.*year.*/;
-      date_level = 1;
+    if (dashboard.name === "Time Series") {
+      const datelevel = await dashboard.findParameterAsync("Time Series Date Level");
+      if (datelevel.currentValue.value === "quarter") {
+        re = /.*\(y-axis\)$|.*year.*|.*quarter.*/;
+        date_level = 2;
+      } else if (datelevel.currentValue.value === "year") {
+        re = /.*\(y-axis\)$|.*year.*/;
+        date_level = 1;
+      }
     } else {
-      return;
+      re = /.*\(y-axis\)$|operator$/;
+      date_level = 1;
     }
     for (let i=0; i < nplots; i++)  {
       let temp = [];
@@ -168,6 +172,10 @@ import { plotAll } from "./buildallPlots.js";
                       row["name"] = "quarter";
                       row["uniquecount"] = 2;
                       row["groupby"] = true;
+                    } else if (column.fieldName.toLowerCase().includes("operator")) {
+                      row["name"] = "Operator";
+                      row["uniquecount"] = 2;
+                      row["groupby"] = true;
                     } else {
                       row["name"] = column.fieldName;
                       row["uniquecount"] = 3;
@@ -188,7 +196,11 @@ import { plotAll } from "./buildallPlots.js";
     }
   
     // plot the chart
-    plotAll(dataMap, date_level, windowSize, transform);
+    if (dashboard.name === "Time Series") {
+      plotTimeSeriesViolins(dataMap, date_level, windowSize, transform);
+    } else {
+      plotOperatorViolins(dataMap, windowSize, transform);
+    }
     // Add an event listener for the selection changed event on this sheet.
     function reload(event) {
       // When the selection changes, reload the data
@@ -231,10 +243,12 @@ import { plotAll } from "./buildallPlots.js";
       // Add an event listener for the selection changed event on this sheet.
       unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
     });
-    dashboard.findParameterAsync("Time Series Date Level").then(par => {
-      // Add an event listener for the selection changed event on this sheet.
-      unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
-    });
+    if (dashboard.name === "Time Series") {
+      dashboard.findParameterAsync("Time Series Date Level").then(par => {
+        // Add an event listener for the selection changed event on this sheet.
+        unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
+      });
+    }
     // unregisterHandlerFunctions.push(dashboard.addEventListener(tableau.TableauEventType.DashboardLayoutChanged, reload));
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.FilterChanged, reload));
   }

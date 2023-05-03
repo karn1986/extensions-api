@@ -1,16 +1,16 @@
 
-export function plotAll(dataMap, date_level, windowSize, transform) {
+export function plotOperatorViolins(dataMap, windowSize, transform) {
 
     const modContainer = d3.select("#plot-container");
     //  Main svg container
-    let svg = tableau.extensions.settings.get('svg');
+    let svg = tableau.extensions.settings.get('Operatorsvg');
     if (!svg) {
       svg = modContainer.append("svg");
-      tableau.extensions.settings.set('svg', svg);
+      tableau.extensions.settings.set('Operatorsvg', svg);
     }
   
     // The margins around the chart canvas.
-    let margin = { top: 5, right: 1, bottom: 40, left: 80 };
+    let margin = { top: 5, right: 1, bottom: 100, left: 80 };
 
     // The position and size of the chart canvas.
     const canvas = { 
@@ -77,27 +77,12 @@ export function plotAll(dataMap, date_level, windowSize, transform) {
     let temp = [];
     XLeaves.forEach((plotleaves, key) => {
         let rowData = {};
-        if (date_level > 1) {
-            rowData["key0"] = key.substring(0, 4);
-            rowData["key1"] = key.substring(4);
-        } else {
-            rowData["key0"] = key;
-        }
+        rowData["key0"] = key;
         rowData["plotleaves"] = plotleaves;
         temp.push(rowData)
     });
-    //  Sort by Year first and then Quarter
-    XLeaves = temp.sort((a,b) => {
-                    if (date_level > 1) {
-                    if (a["key0"] != b["key0"]) {
-                        return +a["key0"] - +b["key0"];
-                    } else {
-                        return +a["key1"].charAt(1) - +b["key1"].charAt(1);
-                    }
-                    } else {
-                    return d3.ascending(a["key0"], b["key0"]);
-                    }
-                })
+    //  Sort by Operator name
+    XLeaves = temp.sort((a,b) => d3.ascending(a["key0"], b["key0"]))
                 .map((row, index) => {
                     row["xIndex"] = index;
                     return row;
@@ -194,7 +179,7 @@ export function plotAll(dataMap, date_level, windowSize, transform) {
         if (max > 1e9) {
             s = (d / 1e9).toFixed(0) + "bil";
         }else if (max > 1e6 && max < 1e9) {
-            s = (d / 1e6).toFixed(0) + "mil";
+            s = (d / 1e6).toFixed(1) + "mil";
         }else if (max > 1e5 && max < 1e6) {
             s = (d / 1e3).toFixed(0) + "K";
         }else if (max < 1e5 && max > 100){
@@ -209,7 +194,7 @@ export function plotAll(dataMap, date_level, windowSize, transform) {
 
     // Compute the suitable ticks to show
     const scaleWidth = xScale.range()[1] - xScale.range()[0];
-    const minLabelWidth = 20;
+    const minLabelWidth = 15;
     const maxCount = scaleWidth / minLabelWidth;
     let tickstep = Math.max(Math.ceil((domain[1]-domain[0]+1)/maxCount),1);
     let xticks = [];
@@ -219,9 +204,7 @@ export function plotAll(dataMap, date_level, windowSize, transform) {
     xticks = xticks.map(tick => XLeaves[tick]);
     
     let accesorfuncs = [];
-    for (var i = 0; i < date_level; i++) {
-     accesorfuncs.push(createAccessorFunction("key"+i));
-    }
+    accesorfuncs.push(createAccessorFunction("key0"));
     let nested = d3.rollup(xticks, v=> d3.mean(v, v=> v.xIndex), ...accesorfuncs);
 
     let xlabelheirarchy = d3.hierarchy(nested)
@@ -234,11 +217,13 @@ export function plotAll(dataMap, date_level, windowSize, transform) {
             const mean = d3.mean(leafvalues);
             
             container.append("text")
-                    .attr("text-anchor", "middle")
-                    .attr("x", xScale(mean))
-                    .attr("y", windowSize.height - margin.bottom + 2)
-                    .attr("dy", depth * line_height + "em")
-                    .text(node.data[0]==="0000" ? (depth == date_level ? "NULL": "") : node.data[0]);
+                    .attr("transform", "rotate(-90)")
+                    .attr("font-size", "0.75em")
+                    .attr("text-anchor", "end")
+                    .attr("x", -(windowSize.height - margin.bottom + 2))
+                    .attr("y", xScale(mean))
+                    .attr("dx", -depth * line_height + "em")
+                    .text(node.data[0]==="0000" ? "NULL" : node.data[0]);
         }
     }
     xlabelheirarchy.each(d=> labelx(d,svg.select(".xaxis_labels")));
@@ -250,26 +235,32 @@ export function plotAll(dataMap, date_level, windowSize, transform) {
             .call(
                 d3.axisLeft(value.yScale)
                 .ticks(3)
-                .tickSizeInner(-windowSize.width + margin.left + margin.right-6)
-                .tickPadding(9)
-                // .tickSizeOuter(0)
                 .tickFormat(d => formatTick(d, value.maxy))
                 )
+
+        svg.append("g")
+            .attr("transform", `translate(${margin.left},0)`)
+            .call(
+                d3.axisLeft(value.yScale)
+                .ticks(3)
+                .tickSizeInner(-windowSize.width + margin.left + margin.right)
+                .tickFormat(d => "")
+                )
+            .call(g => g.select(".domain")
+                .remove())
             .call(g => g.selectAll(".tick:first-of-type line")
                 .remove())
             .call(g => g.selectAll(".tick line")
                     .attr("stroke-opacity", 0.8)
                     .attr("stroke", "LightGray")
                     .attr("stroke-width", 1)
-                    .attr("transform", `translate(-6,0)`)
+                    // .attr("transform", `translate(-6,0)`)
                     )
-            // .call(g => g.selectAll(".tick line")
-            //             .attr("transform", `translate(-6,0)`)
-            //     );
         //  generate y-axis labels
         svg.select(".yaxis_labels")
             .append("text")
             .attr("transform", "rotate(-90)")
+            .attr("font-size", "0.8em")
             .attr("text-anchor", "middle")
             .attr('x', -0.5*(value.top +value.bottom))
             .attr('y', '1em')
@@ -283,8 +274,6 @@ export function plotAll(dataMap, date_level, windowSize, transform) {
                     .tickValues(xticks.map(d=>d.xIndex))    
                     .tickFormat(d=> "")
             )
-            // .call(g => g.select(".domain")
-            //     .remove());
     });
     // Wrap the Y-axis labels
     svg.select(".yaxis_labels")
@@ -326,15 +315,15 @@ export function plotAll(dataMap, date_level, windowSize, transform) {
                             .x(d => d)
                             .y(yScales.get(plotleaf.plotkey).yScale(plotleaf.mean)));
 
-            svg.select(".means")
-                .append("text")
-                .attr("transform", "rotate(-90)")
-                .style("font-size", "0.75em")
-                // .attr("text-anchor", "middle")
-                .attr('x', -yScales.get(plotleaf.plotkey).yScale(plotleaf.mean))
-                .attr('dx', '0.25em')
-                .attr('y', xScale(xLeaf.xIndex) - 0.2 * step)
-                .text(formatTick(plotleaf.mean, yScales.get(plotleaf.plotkey).maxy))
+            // svg.select(".means")
+            //     .append("text")
+            //     .attr("transform", "rotate(-90)")
+            //     .style("font-size", "0.75em")
+            //     // .attr("text-anchor", "middle")
+            //     .attr('x', -yScales.get(plotleaf.plotkey).yScale(plotleaf.mean))
+            //     .attr('dx', '0.25em')
+            //     .attr('y', xScale(xLeaf.xIndex) - 0.2 * step)
+            //     .text(formatTick(plotleaf.mean, yScales.get(plotleaf.plotkey).maxy))
         });
     });
 }
