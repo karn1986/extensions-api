@@ -172,7 +172,7 @@ export function plotOperatorViolins(dataMap, windowSize, transform) {
             }
           }
         });
-      }
+    }
     // function for nice formatting numbers 
     function formatTick(d, max = d) {
         let s;
@@ -208,7 +208,7 @@ export function plotOperatorViolins(dataMap, windowSize, transform) {
     let nested = d3.rollup(xticks, v=> d3.mean(v, v=> v.xIndex), ...accesorfuncs);
 
     let xlabelheirarchy = d3.hierarchy(nested)
-    const line_height = 1.2; // in em
+    const line_height = 0.5; // in em
     // function to put x axis labels at the right spot
     function labelx(node, container) {
         if (node.data[0]) {
@@ -217,16 +217,42 @@ export function plotOperatorViolins(dataMap, windowSize, transform) {
             const mean = d3.mean(leafvalues);
             
             container.append("text")
-                    .attr("transform", "rotate(-90)")
+                    .attr("transform", "rotate(-45)")
                     .attr("font-size", "0.75em")
                     .attr("text-anchor", "end")
-                    .attr("x", -(windowSize.height - margin.bottom + 2))
-                    .attr("y", xScale(mean))
-                    .attr("dx", -depth * line_height + "em")
+                    .attr("dominant-baseline", "middle")
+                    .attr("x", 0.70712 * (xScale(mean)-(windowSize.height - margin.bottom + 10)))
+                    .attr("y", 0.70712 * (xScale(mean)+ (windowSize.height - margin.bottom + 10)))
+                    // .attr("dx", -depth * line_height + "em")
+                    // .attr("dy", "0.5em")
                     .text(node.data[0]==="0000" ? "NULL" : node.data[0]);
         }
     }
     xlabelheirarchy.each(d=> labelx(d,svg.select(".xaxis_labels")));
+    // function for fitting the text labels in given amount of space
+    function compress_text(text, width) {
+        text.each(function() {
+          let text = d3.select(this),
+              label = text.text(),
+              y = text.attr("y"),
+              x = text.attr("x"),
+              i=0,
+              tspan = text.text(null).append("tspan").attr("x", x).attr("y", y);
+              tspan.text(label);
+          while (tspan.node().getComputedTextLength() > (width-5)) {
+            i=i+1;
+            label = label.substring(0, label.length - i);
+            tspan.text(label);     
+          }
+          if (i > 0) {
+            tspan.text(label + "...");
+          }
+        });
+    }
+     // Compress the X-axis labels
+    svg.select(".xaxis_labels")
+            .selectAll("text")
+            .call(compress_text, 1.2*margin.bottom);
 
     yScales.forEach((value, key) => {
         // generate y-axes for subplots
@@ -326,4 +352,19 @@ export function plotOperatorViolins(dataMap, windowSize, transform) {
             //     .text(formatTick(plotleaf.mean, yScales.get(plotleaf.plotkey).maxy))
         });
     });
+    if (domain[1]<30) {
+        XLeaves.forEach(xLeaf => {
+            xLeaf.plotleaves.forEach((plotleaf, i) => {
+                svg.select(".means")
+                    .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("font-size", "0.75em")
+                    // .attr("text-anchor", "middle")
+                    .attr('x', -yScales.get(plotleaf.plotkey).yScale(plotleaf.mean))
+                    .attr('dx', '0.25em')
+                    .attr('y', xScale(xLeaf.xIndex) - 0.2 * step)
+                    .text(formatTick(plotleaf.mean, yScales.get(plotleaf.plotkey).maxy))
+            });
+        });
+    }
 }
