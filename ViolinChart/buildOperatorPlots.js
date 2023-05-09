@@ -232,20 +232,13 @@ export function plotOperatorViolins(dataMap, windowSize, transform) {
     // function for fitting the text labels in given amount of space
     function compress_text(text, width) {
         text.each(function() {
-          let text = d3.select(this),
-              label = text.text(),
-              y = text.attr("y"),
-              x = text.attr("x"),
-              i=0,
-              tspan = text.text(null).append("tspan").attr("x", x).attr("y", y);
-              tspan.text(label);
-          while (tspan.node().getComputedTextLength() > (width-5)) {
-            i=i+1;
-            label = label.substring(0, label.length - i);
-            tspan.text(label);     
-          }
-          if (i > 0) {
-            tspan.text(label + "...");
+          let text = d3.select(this);
+          const label = text.text();
+          const end = label.length;
+          let i=0;
+          while (text.node().getComputedTextLength() > width) {
+            i++;
+            text.text(label.substring(0, end - i) + "...");     
           }
         });
     }
