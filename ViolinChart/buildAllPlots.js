@@ -52,6 +52,39 @@ export function plotTimeSeriesViolins(dataMap, date_level, windowSize, transform
 
     // Draw the Violins
     draw_violins(svg, XLeaves, xScale, yScales, curve);
+    // Define the Zoom behavior
+    const zoom = d3.zoom()
+       .scaleExtent([1, 32])
+       .extent([[margin.left, 0], [windowSize.width - margin.right, windowSize.height]])
+       .translateExtent([[margin.left, -Infinity], [windowSize.width - margin.right, Infinity]])
+       .on("zoom", zoomed);
+ 
+    svg.call(zoom)
+     .transition()
+       .duration(750)
+       .call(zoom.scaleTo, 1);
+ 
+    //  function to zoom
+    function zoomed(event) {
+         const xz = event.transform.rescaleX(xScale);
+         let domain = xz.domain();
+         domain[0] = Math.ceil(domain[0]);
+         domain[1] = Math.floor(domain[1]);
+         xz.domain(domain);
+         svg.select(".xaxis_labels").selectAll("*").remove();
+         svg.select(".histogram").selectAll("*").remove();
+         svg.select(".means").selectAll("*").remove();
+         svg.select(".xaxes").selectAll("*").remove();
+         compute_histogram(XLeaves, xz);
+         // Generate X-Axis Labels
+         const {xlabelheirarchy, xticks} = get_xLabelHeirarchy(XLeaves, xz, date_level);
+         xlabelheirarchy.each(d=> labelx_timeseries(d,svg.select(".xaxis_labels"), xz, windowSize, margin, date_level));
+         draw_xaxes(svg.select(".xaxes"), xz, xticks, yScales);
+         const show_leaves = XLeaves.filter(p => {
+             return (p.xIndex < domain[1] && p.xIndex > domain[0]);
+         }); 
+         draw_violins(svg, show_leaves, xz, yScales, curve)
+    }
 }
 export function plotOperatorViolins(dataMap, windowSize, transform) {
 
@@ -110,35 +143,43 @@ export function plotOperatorViolins(dataMap, windowSize, transform) {
             .call(wrap, plot_height);
      //  Draw the Violins
      draw_violins(svg, XLeaves, xScale, yScales, curve);
-    //  // Define the Zoom behavior
-    // const zoom = d3.zoom()
-    //   .scaleExtent([1, 32])
-    //   .extent([[margin.left, 0], [windowSize.width - margin.right, windowSize.height]])
-    //   .translateExtent([[margin.left, -Infinity], [windowSize.width - margin.right, Infinity]])
-    //   .on("zoom", zoomed);
+     // Define the Zoom behavior
+    const zoom = d3.zoom()
+      .scaleExtent([1, 32])
+      .extent([[margin.left, 0], [windowSize.width - margin.right, windowSize.height]])
+      .translateExtent([[margin.left, -Infinity], [windowSize.width - margin.right, Infinity]])
+      .on("zoom", zoomed);
 
-    // svg.call(zoom)
-    // .transition()
-    //   .duration(750)
-    //   .call(zoom.scaleTo, 1);
+    svg.call(zoom)
+    .transition()
+      .duration(750)
+      .call(zoom.scaleTo, 1);
 
-    //   //  function to zoom
-    // function zoomed(event) {
-    //     const xz = event.transform.rescaleX(xScale);
-    //     svg.select(".xaxis_labels").selectAll("*").remove();
-    //     svg.select(".histogram").selectAll("*").remove();
-    //     svg.select(".means").selectAll("*").remove();
-    //     compute_histogram(XLeaves, xz);
-    //     // Generate X-Axis Labels
-    //     const {xlabelheirarchy, xticks} = get_xLabelHeirarchy(XLeaves, xz);
-    //     xlabelheirarchy.each(d=> labelx_operators(d,svg.select(".xaxis_labels"), xz, windowSize, margin));
-    //     // Compress the X-axis labels
-    //     svg.select(".xaxis_labels")
-    //     .selectAll("text")
-    //     .call(compress_text, 1.2*margin.bottom);
-    //     gx.call(draw_xaxes, xz, xticks, yScales);
-    //     draw_violins(svg, XLeaves, xz, yScales, curve)
-    // }
+    //  function to zoom
+    function zoomed(event) {
+        const xz = event.transform.rescaleX(xScale);
+        let domain = xz.domain();
+        domain[0] = Math.ceil(domain[0]);
+        domain[1] = Math.floor(domain[1]);
+        xz.domain(domain);
+        svg.select(".xaxis_labels").selectAll("*").remove();
+        svg.select(".histogram").selectAll("*").remove();
+        svg.select(".means").selectAll("*").remove();
+        svg.select(".xaxes").selectAll("*").remove();
+        compute_histogram(XLeaves, xz);
+        // Generate X-Axis Labels
+        const {xlabelheirarchy, xticks} = get_xLabelHeirarchy(XLeaves, xz);
+        xlabelheirarchy.each(d=> labelx_operators(d,svg.select(".xaxis_labels"), xz, windowSize, margin));
+        // Compress the X-axis labels
+        svg.select(".xaxis_labels")
+            .selectAll("text")
+            .call(compress_text, 1.2*margin.bottom);
+        draw_xaxes(svg.select(".xaxes"), xz, xticks, yScales);
+        const show_leaves = XLeaves.filter(p => {
+            return (p.xIndex < domain[1] && p.xIndex > domain[0]);
+        }); 
+        draw_violins(svg, show_leaves, xz, yScales, curve)
+    }
 }
 // --------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------
