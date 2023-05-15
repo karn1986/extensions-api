@@ -54,7 +54,7 @@ export function plotTimeSeriesViolins(dataMap, date_level, windowSize, transform
     draw_violins(svg, XLeaves, xScale, yScales, curve);
     // Define the Zoom behavior
     const zoom = d3.zoom()
-       .scaleExtent([1, 32])
+       .scaleExtent([1, Math.ceil(XLeaves.length/5)])
        .extent([[margin.left, 0], [windowSize.width - margin.right, windowSize.height]])
        .translateExtent([[margin.left, -Infinity], [windowSize.width - margin.right, Infinity]])
        .on("zoom", zoomed);
@@ -145,7 +145,7 @@ export function plotOperatorViolins(dataMap, windowSize, transform) {
      draw_violins(svg, XLeaves, xScale, yScales, curve);
      // Define the Zoom behavior
     const zoom = d3.zoom()
-      .scaleExtent([1, 32])
+      .scaleExtent([1, Math.ceil(XLeaves.length/5)])
       .extent([[margin.left, 0], [windowSize.width - margin.right, windowSize.height]])
       .translateExtent([[margin.left, -Infinity], [windowSize.width - margin.right, Infinity]])
       .on("zoom", zoomed);
