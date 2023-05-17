@@ -41,6 +41,7 @@ export function plotTimeSeriesViolins(dataMap, date_level, windowSize, transform
     // Generate X-Axis Labels
     const {xlabelheirarchy, xticks} = get_xLabelHeirarchy(XLeaves, xScale, date_level);
     xlabelheirarchy.each(d=> labelx_timeseries(d,svg.select(".xaxis_labels"), xScale, windowSize, margin, date_level));
+    draw_yearsseparator(svg.select(".xaxis_labels"), XLeaves, xScale, date_level, windowSize, margin);
     // Generate Y Axes
     draw_yaxes(svg, yScales, windowSize, margin);
     // Generate X Axes
@@ -79,6 +80,7 @@ export function plotTimeSeriesViolins(dataMap, date_level, windowSize, transform
          // Generate X-Axis Labels
          const {xlabelheirarchy, xticks} = get_xLabelHeirarchy(XLeaves, xz, date_level);
          xlabelheirarchy.each(d=> labelx_timeseries(d,svg.select(".xaxis_labels"), xz, windowSize, margin, date_level));
+         draw_yearsseparator(svg.select(".xaxis_labels"), XLeaves, xz, date_level, windowSize, margin);
          draw_xaxes(svg.select(".xaxes"), xz, xticks, yScales);
          const show_leaves = XLeaves.filter(p => {
              return (p.xIndex < domain[1] && p.xIndex > domain[0]);
@@ -350,6 +352,40 @@ function get_xLabelHeirarchy(XLeaves, xScale, date_level = 1) {
     const nested = d3.rollup(xticks, v=> d3.mean(v, v=> v.xIndex), ...accesorfuncs);
     return {xlabelheirarchy: d3.hierarchy(nested), xticks: xticks};
 }
+// function to get x location of separator tick likes to group by year
+function get_yearsseparator(XLeaves, xScale) {
+    // Compute the suitable ticks to show
+    const domain = xScale.domain();
+    let xticks = [];
+    for (var i = Math.ceil(domain[0]+1); i < domain[1]; i++) {
+        xticks.push(i)
+    }
+    xticks = xticks.map(tick => XLeaves[tick]);
+    let maxx = d3.flatRollup(xticks, v=> d3.max(v, v=> v.xIndex), d => d.key0);
+    maxx.pop();
+    let minx = d3.flatRollup(xticks, v=> d3.min(v, v=> v.xIndex), d => d.key0);
+    minx.shift();
+    return maxx.map((p,i)=> xScale(0.5*(p[1] + minx[i][1])));
+}
+// function to get x location of separator tick likes to group by year
+function draw_yearsseparator(container, XLeaves, xScale, date_level, windowSize, margin) {
+    if (date_level > 1) {
+        let yearseparator = get_yearsseparator(XLeaves, xScale);
+        yearseparator = d3.merge([[margin.left], yearseparator, [windowSize.width - margin.right]])
+        const fontsize = parseFloat(container.style("font-size"));
+        const basey = windowSize.height - margin.bottom;
+        yearseparator = yearseparator.map(p => {
+                return [[p, basey],[p,basey + 3* fontsize]];
+            });
+        yearseparator = yearseparator.concat([[[margin.left, basey + 3* fontsize],[windowSize.width - margin.right,basey + 3* fontsize]]]);    
+        yearseparator.forEach(separator => {    
+        container.append("path")
+            .attr("stroke", "black")
+            .attr("stroke-width", 1)
+            .attr("d", d3.line()(separator));
+        });
+    }
+}
 // function to draw the Y-axes
 function draw_yaxes(svg, yScales, windowSize, margin, labelsize = "1em") {
     yScales.forEach((value, key) => {
@@ -475,6 +511,7 @@ function labelx_timeseries(node, container, xScale, windowSize, margin, date_lev
                 .attr("x", xScale(mean))
                 .attr("y", windowSize.height - margin.bottom + 2)
                 .attr("dy", depth * line_height + "em")
+                .attr("dx", node.data[0]==="0000" ? "-0.5em" : 0)
                 .text(node.data[0]==="0000" ? (depth == date_level ? "NULL": "") : node.data[0]);
     }
 }
