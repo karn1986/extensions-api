@@ -1,16 +1,16 @@
-export function plotTimeSeriesViolins(dataMap, date_level, windowSize, transform) {
-
-    const modContainer = d3.select("#plot-container");
-    //  Main svg container
-    let svg = tableau.extensions.settings.get('TSsvg');
-    if (!svg) {
-      svg = modContainer.append("svg");
-      tableau.extensions.settings.set('TSsvg', svg);
+export function plotTimeSeriesViolins(svg, dataMap, date_level, windowSize, transform) {
+    svg.selectAll("*").remove();
+    if (dataMap.size < 1) {
+        svg.append("text")
+          .attr("text-anchor", "middle")
+          .attr("x", 0.5 * windowSize.width)
+          .attr("y", 0.5 * windowSize.height)
+          .style("font-size", "3em")
+          .text("No Violin Plots to show!");
+        return;
     }
-  
     // The margins around the chart canvas.
     const margin = { top: 5, right: 1, bottom: 40, left: 80 };
-
     // The position and size of the chart canvas.
     const canvas = { 
         width: windowSize.width - (margin.left + margin.right),
@@ -29,9 +29,6 @@ export function plotTimeSeriesViolins(dataMap, date_level, windowSize, transform
     compute_histogram(XLeaves, xScale);
 
     const curve = d3.curveCatmullRom.alpha(0.5);
-    // Sets the viewBox to match windowSize
-    svg.attr("viewBox", [0, 0, windowSize.width, windowSize.height]);
-    svg.selectAll("*").remove();
     //  Prepare groups that will hold all elements of an area chart
     svg.append("g").attr("class", "yaxis_labels");
     svg.append("g").attr("class", "xaxis_labels");
@@ -88,19 +85,19 @@ export function plotTimeSeriesViolins(dataMap, date_level, windowSize, transform
          draw_violins(svg, show_leaves, xz, yScales, curve)
     }
 }
-export function plotOperatorViolins(dataMap, windowSize, transform) {
-
-    const modContainer = d3.select("#plot-container");
-    //  Main svg container
-    let svg = tableau.extensions.settings.get('Operatorsvg');
-    if (!svg) {
-      svg = modContainer.append("svg");
-      tableau.extensions.settings.set('Operatorsvg', svg);
+export function plotOperatorViolins(svg, dataMap, windowSize, transform) {  
+    svg.selectAll("*").remove();
+    if (dataMap.size < 1) {
+        svg.append("text")
+          .attr("text-anchor", "middle")
+          .attr("x", 0.5 * windowSize.width)
+          .attr("y", 0.5 * windowSize.height)
+          .style("font-size", "3em")
+          .text("No Violin Plots to show!");
+        return;
     }
-  
     // The margins around the chart canvas.
     const margin = { top: 5, right: 1, bottom: 100, left: 80 };
-
     // The position and size of the chart canvas.
     const canvas = { 
         width: windowSize.width - (margin.left + margin.right),
@@ -119,9 +116,6 @@ export function plotOperatorViolins(dataMap, windowSize, transform) {
     compute_histogram(XLeaves, xScale);
 
     const curve = d3.curveCatmullRom.alpha(0.5);
-    // Sets the viewBox to match windowSize
-    svg.attr("viewBox", [0, 0, windowSize.width, windowSize.height]);
-    svg.selectAll("*").remove();
     //  Prepare groups that will hold all elements of an area chart
     svg.append("g").attr("class", "yaxis_labels");
     svg.append("g").attr("class", "xaxis_labels");

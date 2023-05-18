@@ -44,7 +44,7 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
           console.log("done");
         });
 
-        loadSelectedMarks(worksheets, windowSize).then();
+        loadSelectedMarks(worksheets, windowSize);
       });
     });
   });
@@ -64,9 +64,33 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
     }
 
     // First determine the number of subplots
-    let nplots;
+    let nplots, svg_key;
     let transform = (x) => x;
-    const dashboard = tableau.extensions.dashboardContent.dashboard
+    const dashboard = tableau.extensions.dashboardContent.dashboard;
+    if (dashboard.name === "Time Series") {
+        svg_key = 'TSsvg';
+    } else {
+      svg_key = 'Operatorsvg';
+    }
+
+    const modContainer = d3.select("#plot-container");
+    //  Main svg container
+    let svg = tableau.extensions.settings.get(svg_key);
+    if (!svg) {
+      svg = modContainer.append("svg");
+      tableau.extensions.settings.set(svg_key, svg);
+    }
+
+    // Sets the viewBox to match windowSize
+    svg.attr("viewBox", [0, 0, windowSize.width, windowSize.height]);
+    svg.selectAll("*").remove();
+    svg.append("text")
+          .attr("text-anchor", "middle")
+          .attr("x", 0.5 * windowSize.width)
+          .attr("y", 0.5 * windowSize.height)
+          .style("font-size", "3em")
+          .text("Loading Data... Please Wait!");
+
     const plotType = await dashboard.findParameterAsync("TS/Distribution - Plot Types");
     switch (plotType.currentValue.value) {
       case "Norm Completion Parameter":
@@ -101,10 +125,6 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
       default:
         nplots = 0;
     }
-
-    // if (nplots<1) {
-    //   return;
-    // }
 
     // Next find the columns to extract
     let options = {
@@ -196,16 +216,16 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
   
     // plot the chart
     if (dashboard.name === "Time Series") {
-      plotTimeSeriesViolins(dataMap, date_level, windowSize, transform);
+      plotTimeSeriesViolins(svg, dataMap, date_level, windowSize, transform);
     } else {
-      plotOperatorViolins(dataMap, windowSize, transform);
+      plotOperatorViolins(svg, dataMap, windowSize, transform);
     }
     // Add an event listener for the selection changed event on this sheet.
     function reload(event) {
       // When the selection changes, reload the data
       const extension = tableau.extensions.dashboardContent.dashboard.objects.find(p=> p.name === "Violin Chart");
       const windowSize = extension.size;
-      loadSelectedMarks(worksheets, windowSize).then();
+      loadSelectedMarks(worksheets, windowSize);
     }
     function visibility(event) {
       tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
@@ -251,6 +271,4 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
     // unregisterHandlerFunctions.push(dashboard.addEventListener(tableau.TableauEventType.DashboardLayoutChanged, reload));
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.FilterChanged, reload));
   }
-  
-  
 })();
