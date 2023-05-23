@@ -10,7 +10,7 @@ export function plotTimeSeriesViolins(svg, dataMap, date_level, windowSize, tran
         return;
     }
     // The margins around the chart canvas.
-    const margin = { top: 5, right: 1, bottom: 40, left: 80 };
+    const margin = { top: 5, right: 1, bottom: 55, left: 80 };
     // The position and size of the chart canvas.
     const canvas = { 
         width: windowSize.width - (margin.left + margin.right),
@@ -40,7 +40,7 @@ export function plotTimeSeriesViolins(svg, dataMap, date_level, windowSize, tran
     xlabelheirarchy.each(d=> labelx_timeseries(d,svg.select(".xaxis_labels"), xScale, windowSize, margin, date_level));
     draw_yearsseparator(svg.select(".xaxis_labels"), XLeaves, xScale, date_level, windowSize, margin);
     // Generate Y Axes
-    draw_yaxes(svg, yScales, windowSize, margin);
+    draw_yaxes(svg, yScales, windowSize, margin, "0.8em");
     // Generate X Axes
     draw_xaxes(svg.select(".xaxes"), xScale, xticks, yScales);
     // Wrap the Y-axis labels

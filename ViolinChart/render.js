@@ -6,46 +6,7 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
   $(document).ready(function () {
     // Tell Tableau we'd like to initialize our extension
     tableau.extensions.initializeAsync().then(function () {
-      tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
-        // The first step in choosing a sheet will be asking Tableau what sheets are available
-        const dashboardObjects = tableau.extensions.dashboardContent.dashboard.objects;
-        const extension = dashboardObjects.find(p=> p.name === "Violin Chart");
-        const worksheets = tableau.extensions.dashboardContent.dashboard.worksheets;
-        let windowSize = extension.size;
-        let dashboardObjectVisibilityMap = new Map();
-        if (par.currentValue.value === "Show") {
-          dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Show);
-          let width = 0;
-          let height = 0;
-          dashboardObjects.forEach(object =>  {
-            if (object.worksheet) {
-              dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Hide);
-              width += object.size.width;
-              height += object.size.height;
-            }
-          });
-          if (windowSize.width < 100) {
-            windowSize.width = width;
-          }
-          if (windowSize.height < 100) {
-            windowSize.height = height;
-          }
-          console.log(`width is ${windowSize.width} and height is ${windowSize.height}`);
-        } else if (par.currentValue.value === "Hide") {
-          dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Hide);
-          dashboardObjects.forEach(object =>  {
-            if (object.worksheet) {
-              dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Show);
-            }
-          });
-        }
-        const dashboard = tableau.extensions.dashboardContent.dashboard;
-        dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
-          console.log("done");
-        });
-
-        loadSelectedMarks(worksheets, windowSize);
-      });
+        loadSelectedMarks();
     });
   });
 
@@ -56,31 +17,65 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
   // This variable will save off the function we can call to unregister listening to marks-selected events
   let unregisterHandlerFunctions = [];
 
-  async function loadSelectedMarks (worksheets, windowSize) {
+  async function loadSelectedMarks () {
     // Remove any existing event listeners
     if (unregisterHandlerFunctions.length > 0) {
       unregisterHandlerFunctions.forEach(f => f());
       unregisterHandlerFunctions = [];
     }
-
-    // First determine the number of subplots
-    let nplots, svg_key;
-    let transform = (x) => x;
+    // Determine the plot type
     const dashboard = tableau.extensions.dashboardContent.dashboard;
-    if (dashboard.name === "Time Series") {
-        svg_key = 'TSsvg';
+    const plotType = await dashboard.findParameterAsync("TS/Distribution - Plot Types");
+    const parChanged = tableau.TableauEventType.ParameterChanged;
+    const dashboardObjects = dashboard.objects;
+    const extension = dashboardObjects.find(p=> p.name === "Violin Chart");
+    let windowSize = extension.size;
+    let dashboardObjectVisibilityMap = new Map();
+    if (!plotType.currentValue.value.includes("Violin")) {
+        dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Hide);
+        dashboardObjects.forEach(object =>  {
+          if (object.worksheet) {
+            dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Show);
+          }
+        });
+        unregisterHandlerFunctions.push(plotType.addEventListener(parChanged, event => loadSelectedMarks()));
+        dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
+          console.log("done");
+        });
+        return;
     } else {
-      svg_key = 'Operatorsvg';
-    }
-
+        dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Show);
+        let width = 0;
+        let height = 0;
+        dashboardObjects.forEach(object =>  {
+          if (object.worksheet) {
+            dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Hide);
+            width += object.size.width;
+            height += object.size.height;
+          }
+        });
+        if (windowSize.width < 100) {
+          windowSize.width = width;
+        }
+        if (windowSize.height < 100) {
+          windowSize.height = height;
+        }
+        unregisterHandlerFunctions.push(plotType.addEventListener(parChanged, event => loadSelectedMarks()));
+        dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
+          console.log("done");
+        });
+    } 
+    // First determine the number of subplots
+    const worksheets = dashboard.worksheets;
+    let nplots=0;
+    let transform = (x) => x;
     const modContainer = d3.select("#plot-container");
     //  Main svg container
-    let svg = tableau.extensions.settings.get(svg_key);
+    let svg = tableau.extensions.settings.get("svg");
     if (!svg) {
       svg = modContainer.append("svg");
-      tableau.extensions.settings.set(svg_key, svg);
+      tableau.extensions.settings.set("svg", svg);
     }
-
     // Sets the viewBox to match windowSize
     svg.attr("viewBox", [0, 0, windowSize.width, windowSize.height]);
     svg.selectAll("*").remove();
@@ -90,42 +85,39 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
           .attr("y", 0.5 * windowSize.height)
           .style("font-size", "3em")
           .text("Loading Data... Please Wait!");
-
-    const plotType = await dashboard.findParameterAsync("TS/Distribution - Plot Types");
-    switch (plotType.currentValue.value) {
-      case "Norm Completion Parameter":
-      case "Perforation Parameter":
-      case "Completion Parameter":
-      case "Petrophysical":
-      case "Production":
-      case "Adjusted Water Cut":
-      case "Pre-Production (All Formations)":
-      case "Pre-Production (Formation Specific)":
-        nplots = 5;
-        break;
-      case "Proppant Mesh Size":
-        nplots = 4;
-        transform = Math.log10;
-        break;
-      case "Well Parameter":
-      case "Proppant Type":
-        nplots = 3;
-        transform = Math.log10;
-        break;
-      case "Sand Type":
-        nplots = 2;
-        transform = Math.log10;
-        break;
-      case "Fluid History":
-          nplots = 8;
-          break;
-      case "GOR":
-        nplots = 6;
-        break;
-      default:
-        nplots = 0;
+          
+    let date_level = 1;
+    let re = /.*Norm Completion Parameter.*|.*Perforation Parameter.*|.*Completion Parameter.*|.*Petrophysical.*|.*Production.*/;
+    if (plotType.currentValue.value.match(re)) {
+      nplots = 5;
     }
-
+    re = /.*Adjusted Water Cut.*|.*Pre-Production (All Formations).*|.*Pre-Production (Formation Specific).*/;
+    if (plotType.currentValue.value.match(re)) {
+      nplots = 5;
+    }
+    re = /.*Proppant Mesh Size.*/;
+    if (plotType.currentValue.value.match(re)) {
+      nplots = 4;
+      transform = Math.log10;
+    }
+    re = /.*Well Parameter.*|.*Proppant Type.*/;
+    if (plotType.currentValue.value.match(re)) {
+      nplots = 3;
+      transform = Math.log10;
+    }
+    re = /.*Sand Type.*/;
+    if (plotType.currentValue.value.match(re)) {
+      nplots = 2;
+      transform = Math.log10;
+    }
+    re = /.*Fluid History.*/;
+    if (plotType.currentValue.value.match(re)) {
+      nplots = 8;
+    }
+    re = /.*GOR.*/;
+    if (plotType.currentValue.value.match(re)) {
+      nplots = 6;
+    }
     // Next find the columns to extract
     let options = {
         maxRows: 1, // Max rows to return. Use 0 to return all rows.
@@ -134,9 +126,10 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
 
     const cols_to_include = {};
     const keys = {}; // for storing the Y-axis labels
-    let re, date_level;
-    if (dashboard.name === "Time Series") {
+    
+    if (!plotType.currentValue.value.includes("Distribution")) {
       const datelevel = await dashboard.findParameterAsync("Time Series Date Level");
+      unregisterHandlerFunctions.push(datelevel.addEventListener(parChanged, event => loadSelectedMarks()));
       if (datelevel.currentValue.value === "quarter") {
         re = /.*\(y-axis\)$|.*year.*|.*quarter.*/;
         date_level = 2;
@@ -145,14 +138,14 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
         date_level = 1;
       }
     } else {
-      re = /.*\(y-axis\)$|operator$/;
+      re = /.*\(y-axis\)$|.*quarter.*/;
       date_level = 1;
     }
     for (let i=0; i < nplots; i++)  {
       let temp = [];
       const worksheet = worksheets[i].name;
-      let dataTableReader = await worksheets[i].getSummaryDataReaderAsync(1, options);
-      let worksheetData = await dataTableReader.getAllPagesAsync(1);
+      const dataTableReader = await worksheets[i].getSummaryDataReaderAsync(1, options);
+      const worksheetData = await dataTableReader.getAllPagesAsync(1);
       worksheetData.columns.forEach((column, index) => {
         if (column.fieldName.toLowerCase().match(re)) {
           temp.push(column.fieldId)
@@ -172,8 +165,8 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
     for (let i=0; i < nplots; i++)  {
       const worksheet = worksheets[i].name;
       options.columnsToIncludeById = cols_to_include[worksheet];
-      let dataTableReader = await worksheets[i].getSummaryDataReaderAsync(10000, options);
-      let worksheetData = await dataTableReader.getAllPagesAsync();
+      const dataTableReader = await worksheets[i].getSummaryDataReaderAsync(10000, options);
+      const worksheetData = await dataTableReader.getAllPagesAsync();
       // ... process data table ...
       const columns = worksheetData.columns.map((column, i) => {
                     let row = {};
@@ -215,58 +208,10 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
     }
   
     // plot the chart
-    if (dashboard.name === "Time Series") {
+    if (!plotType.currentValue.value.includes("Distribution")) {
       plotTimeSeriesViolins(svg, dataMap, date_level, windowSize, transform);
     } else {
       plotOperatorViolins(svg, dataMap, windowSize, transform);
-    }
-    // Add an event listener for the selection changed event on this sheet.
-    function reload(event) {
-      // When the selection changes, reload the data
-      const extension = tableau.extensions.dashboardContent.dashboard.objects.find(p=> p.name === "Violin Chart");
-      const windowSize = extension.size;
-      loadSelectedMarks(worksheets, windowSize);
-    }
-    function visibility(event) {
-      tableau.extensions.dashboardContent.dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
-        // When the parameter changes show/hide the extension
-        const dashboardObjects = tableau.extensions.dashboardContent.dashboard.objects;
-        const extension = dashboardObjects.find(p=> p.name === "Violin Chart");
-        let dashboardObjectVisibilityMap = new Map();
-        if (par.currentValue.value === "Show") {
-          dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Show);
-          dashboardObjects.forEach(object =>  {
-            if (object.worksheet) {
-              dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Hide);
-            }
-          });
-        } else if (par.currentValue.value === "Hide") {
-          dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Hide);
-          dashboardObjects.forEach(object =>  {
-            if (object.worksheet) {
-              dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Show);
-            }
-          });
-        }
-        let dashboard = tableau.extensions.dashboardContent.dashboard;
-        dashboard.setDashboardObjectVisibilityAsync(dashboardObjectVisibilityMap).then(() => {
-          console.log("done");
-        });
-      })
-    }
-    dashboard.findParameterAsync("Violin Charts (Show/Hide)").then(par => {
-      // Add an event listener for the selection changed event on this sheet.
-      unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, visibility));
-    });
-    dashboard.findParameterAsync("TS/Distribution - Plot Types").then(par => {
-      // Add an event listener for the selection changed event on this sheet.
-      unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
-    });
-    if (dashboard.name === "Time Series") {
-      dashboard.findParameterAsync("Time Series Date Level").then(par => {
-        // Add an event listener for the selection changed event on this sheet.
-        unregisterHandlerFunctions.push(par.addEventListener(tableau.TableauEventType.ParameterChanged, reload));
-      });
     }
     // unregisterHandlerFunctions.push(dashboard.addEventListener(tableau.TableauEventType.DashboardLayoutChanged, reload));
     // unregisterHandlerFunctions.push(worksheet.addEventListener(tableau.TableauEventType.FilterChanged, reload));
