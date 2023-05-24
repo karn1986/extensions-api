@@ -215,7 +215,7 @@ function groupby(dataMap, canvas, margin) {
                 for (var i = 0; i < row.length; i++) {
                     if (typeof row[i] != 'object') {
                         if (('' + row[i]).includes("null")) {
-                            key += "0000";
+                            key += "!!!!";
                         } else {
                            key += row[i]; 
                         }       
@@ -251,7 +251,7 @@ function sortbyKeys(data, date_level = 1) {
     XLeaves = XLeaves.sort((a,b) => {
                     if (date_level > 1) {
                     if (a["key0"] != b["key0"]) {
-                        return +a["key0"] - +b["key0"];
+                        return d3.ascending(a["key0"], b["key0"]);
                     } else {
                         return +a["key1"].charAt(1) - +b["key1"].charAt(1);
                     }
@@ -505,8 +505,8 @@ function labelx_timeseries(node, container, xScale, windowSize, margin, date_lev
                 .attr("x", xScale(mean))
                 .attr("y", windowSize.height - margin.bottom + 2)
                 .attr("dy", depth * line_height + "em")
-                .attr("dx", node.data[0]==="0000" ? "-0.5em" : 0)
-                .text(node.data[0]==="0000" ? (depth == date_level ? "NULL": "") : node.data[0]);
+                .attr("dx", node.data[0]==="!!!!" ? "-0.5em" : 0)
+                .text(node.data[0]==="!!!!" ? (depth == date_level ? "NULL": "") : node.data[0]);
     }
 }
 
@@ -526,7 +526,7 @@ function labelx_operators(node, container, xScale, windowSize, margin) {
                 .attr("y", 0.70712 * (xScale(mean)+ (windowSize.height - margin.bottom + 10)))
                 // .attr("dx", -depth * line_height + "em")
                 // .attr("dy", "0.5em")
-                .text(node.data[0]==="0000" ? "NULL" : node.data[0]);
+                .text(node.data[0]==="!!!!" ? "NULL" : node.data[0]);
     }
 }
 // function to draw the violins

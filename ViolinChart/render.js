@@ -31,10 +31,11 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
     const extension = dashboardObjects.find(p=> p.name === "Violin Chart");
     let windowSize = extension.size;
     let dashboardObjectVisibilityMap = new Map();
+    let re = /.*Workbook Coloring.*|.*Mark Size.*|.*Top Wells.*/;
     if (!plotType.currentValue.value.includes("Violin")) {
         dashboardObjectVisibilityMap.set(extension.id, tableau.DashboardObjectVisibilityType.Hide);
         dashboardObjects.forEach(object =>  {
-          if (object.worksheet) {
+          if (object.worksheet || object.name.match(re)) {
             dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Show);
           }
         });
@@ -48,10 +49,12 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
         let width = 0;
         let height = 0;
         dashboardObjects.forEach(object =>  {
-          if (object.worksheet) {
+          if (object.worksheet || object.name.match(re)) {
             dashboardObjectVisibilityMap.set(object.id, tableau.DashboardObjectVisibilityType.Hide);
-            width += object.size.width;
-            height += object.size.height;
+            if (object.worksheet) {
+              width += object.size.width;
+              height += object.size.height;
+            }
           }
         });
         if (windowSize.width < 100) {
@@ -87,7 +90,7 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
           .text("Loading Data... Please Wait!");
           
     let date_level = 1;
-    let re = /.*Norm Completion Parameter.*|.*Perforation Parameter.*|.*Completion Parameter.*|.*Petrophysical.*|.*Production.*/;
+    re = /.*Norm Completion Parameter.*|.*Perforation Parameter.*|.*Completion Parameter.*|.*Petrophysical.*|.*Production.*/;
     if (plotType.currentValue.value.match(re)) {
       nplots = 5;
     }
