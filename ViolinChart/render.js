@@ -141,7 +141,7 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
         date_level = 1;
       }
     } else {
-      re = /.*\(y-axis\)$|.*quarter.*/;
+      re = /.*\(y-axis\)$|.*quarter.*|.*sort.*/;
       date_level = 1;
     }
     for (let i=0; i < nplots; i++)  {
@@ -177,27 +177,31 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
                     row["colindex"] = i;
                     if (column.fieldName.match(re)) {
                       row["name"] = "Y";
-                      row["uniquecount"] = -1;
+                      row["rank"] = -1;
                       row["groupby"] = false;
                     } else if (column.fieldName.toLowerCase().includes("year")) {
                       row["name"] = "year";
-                      row["uniquecount"] = 1;
+                      row["rank"] = 1;
                       row["groupby"] = true;
                     } else if (column.fieldName.toLowerCase().includes("quarter")) {
                       row["name"] = "quarter";
-                      row["uniquecount"] = 2;
+                      row["rank"] = 2;
                       row["groupby"] = true;
                     } else if (column.fieldName.toLowerCase().includes("operator")) {
                       row["name"] = "Operator";
-                      row["uniquecount"] = 2;
+                      row["rank"] = 2;
+                      row["groupby"] = true;
+                    } else if (column.fieldName.toLowerCase().includes("sort")) {
+                      row["name"] = "Sort";
+                      row["rank"] = 3;
                       row["groupby"] = true;
                     } else {
                       row["name"] = column.fieldName;
-                      row["uniquecount"] = 3;
+                      row["rank"] = 3;
                       row["groupby"] = false;
                     }
                     return row;
-                  }).sort((a,b) => a.uniquecount - b.uniquecount);
+                  }).sort((a,b) => a.rank - b.rank);
 
       const data = worksheetData.data.map(row => {
                       let rowData = {};

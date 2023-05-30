@@ -23,7 +23,7 @@ export function plotTimeSeriesViolins(svg, dataMap, date_level, windowSize, tran
     }
     
     const {data, yScales, nbins, plot_height} = groupby(dataMap, canvas, margin);
-    const XLeaves = sortbyKeys(data, date_level);
+    const XLeaves = sortbyKeys(data);
     const xScale = get_xScale(XLeaves, windowSize, margin); 
     bin_and_count(XLeaves, yScales, nbins, transform);
     compute_histogram(XLeaves, xScale);
@@ -110,7 +110,7 @@ export function plotOperatorViolins(svg, dataMap, windowSize, transform) {
     }
 
     const {data, yScales, nbins, plot_height} = groupby(dataMap, canvas, margin);
-    const XLeaves = sortbyKeys(data);
+    const XLeaves = sortbyKeys(data, false);
     const xScale = get_xScale(XLeaves, windowSize, margin);
     bin_and_count(XLeaves, yScales, nbins, transform);
     compute_histogram(XLeaves, xScale);
@@ -215,9 +215,9 @@ function groupby(dataMap, canvas, margin) {
                 for (var i = 0; i < row.length; i++) {
                     if (typeof row[i] != 'object') {
                         if (('' + row[i]).includes("null")) {
-                            key += "!!!!";
+                            key += "#$" + "!!!!";
                         } else {
-                           key += row[i]; 
+                           key += "#$" + row[i]; 
                         }       
                     } else if (typeof row[i] === 'object') {
                         values = row[i];
@@ -234,29 +234,31 @@ function groupby(dataMap, canvas, margin) {
     return {data: XLeaves, yScales: yScales, nbins: nbins, plot_height: plot_height}
 }
 // Function to sort data by keys
-function sortbyKeys(data, date_level = 1) {
+function sortbyKeys(data, ts = true) {
     let XLeaves = [];
     data.forEach((plotleaves, key) => {
         let rowData = {};
-        if (date_level > 1) {
-            rowData["key0"] = key.substring(0, 4);
-            rowData["key1"] = key.substring(4);
-        } else {
-            rowData["key0"] = key;
-        }
+        let keys = key.split(/#\$/);
+        keys.shift();
+        keys.forEach((k, i) => {
+            rowData["key" + i] = k;
+        });
         rowData["plotleaves"] = plotleaves;
         XLeaves.push(rowData)
     });
     //  Sort by Year first and then Quarter
+    const SortisNull = XLeaves.every(p => p["key1"] === "!!!!");
     XLeaves = XLeaves.sort((a,b) => {
-                    if (date_level > 1) {
-                    if (a["key0"] != b["key0"]) {
+                    if (ts) {
+                        if (a["key0"] != b["key0"]) {
+                            return d3.ascending(a["key0"], b["key0"]);
+                        } else {
+                            return +a["key1"].charAt(1) - +b["key1"].charAt(1);
+                        }
+                    } else if (SortisNull) {
                         return d3.ascending(a["key0"], b["key0"]);
                     } else {
-                        return +a["key1"].charAt(1) - +b["key1"].charAt(1);
-                    }
-                    } else {
-                    return d3.ascending(a["key0"], b["key0"]);
+                        return d3.ascending(a["key1"], b["key1"]);
                     }
                 })
                 .map((row, index) => {
