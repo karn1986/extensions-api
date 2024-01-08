@@ -393,6 +393,9 @@ function draw_yaxes(svg, yScales, windowSize, margin, labelsize = "1em") {
                 .ticks(3)
                 .tickFormat(d => formatTick(d, value.maxy))
                 )
+            .call(g => g.selectAll(".tick text")
+                .attr("font-size", "1.2em")
+                )
 
         svg.append("g")
             .attr("transform", `translate(${margin.left},0)`)
