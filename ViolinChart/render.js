@@ -98,6 +98,10 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
     if (plotType.currentValue.value.match(re)) {
       nplots = 5;
     }
+    re = /.*Completion Cost.*/;
+    if (plotType.currentValue.value.match(re)) {
+      nplots = 4;
+    }
     re = /.*Proppant Mesh Size.*/;
     if (plotType.currentValue.value.match(re)) {
       nplots = 4;
