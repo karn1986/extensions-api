@@ -90,41 +90,15 @@ import {plotTimeSeriesViolins, plotOperatorViolins} from "./buildAllPlots.js";
           .text("Loading Data... Please Wait!");
           
     let date_level = 1;
-    re = /.*Norm Completion Parameter.*|.*Perforation Parameter.*|.*Completion Parameter.*|.*Petrophysical.*|.*Production.*/;
+    re = /.*=(\d).*/;
     if (plotType.currentValue.value.match(re)) {
-      nplots = 5;
+      nplots = parseInt(plotType.currentValue.value.match(re)[1]);
     }
-    re = /.*Adjusted Water Cut.*|.*Pre-Production (All Formations).*|.*Pre-Production (Formation Specific).*/;
+    re = /.*Proppant Mesh Size.*|.*Well Parameter.*|.*Proppant Type.*|.*Sand Type.*/;
     if (plotType.currentValue.value.match(re)) {
-      nplots = 5;
-    }
-    re = /.*Completion Cost.*/;
-    if (plotType.currentValue.value.match(re)) {
-      nplots = 4;
-    }
-    re = /.*Proppant Mesh Size.*/;
-    if (plotType.currentValue.value.match(re)) {
-      nplots = 4;
       transform = Math.log10;
     }
-    re = /.*Well Parameter.*|.*Proppant Type.*/;
-    if (plotType.currentValue.value.match(re)) {
-      nplots = 3;
-      transform = Math.log10;
-    }
-    re = /.*Sand Type.*/;
-    if (plotType.currentValue.value.match(re)) {
-      nplots = 2;
-      transform = Math.log10;
-    }
-    re = /.*Fluid History.*/;
-    if (plotType.currentValue.value.match(re)) {
-      nplots = 8;
-    }
-    re = /.*GOR.*/;
-    if (plotType.currentValue.value.match(re)) {
-      nplots = 6;
-    }
+   
     // Next find the columns to extract
     let options = {
         maxRows: 1, // Max rows to return. Use 0 to return all rows.
